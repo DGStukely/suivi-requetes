@@ -684,7 +684,7 @@ let spOnline  = false;      // true = connecté à SharePoint
 let currentUser = null;     // objet utilisateur SP courant
 let entries = [];           // données en mémoire
 let idCounter = parseInt(localStorage.getItem('rq-counter') || '100');
-let filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all' };
+let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all' };
 let detailId = null;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1469,6 +1469,9 @@ const APP_FIELDS=[
   {key:'assigned',label:'Assigné à',required:false},{key:'date',label:'Date',required:false},
   {key:'dept',label:'Département',required:false},{key:'echeanceDate',label:'Date échéance',required:false},
   {key:'fermetureDate',label:'Date fermeture',required:false},
+  {key:'saisieDate',label:'Date de saisie',required:false},
+  {key:'adresse',label:'Adresse',required:false},
+  {key:'sousCategorie',label:'Sous-catégorie',required:false},
 ];
 const AUTO_MAP={
   titre:['titre','title','sujet','objet','subject','intitulé','libellé','demande','nom'],
@@ -1478,10 +1481,14 @@ const AUTO_MAP={
   priority:['priorité','priorite','priority','urgence','niveau'],
   author:['auteur','author','citoyen','demandeur','nom citoyen','prénom nom','contact','client','usager','requérant','requerant'],
   assigned:['assigné','assigne','assigned','responsable','agent','technicien','contributeur'],
-  date:['date de création','date création','date_creation','created_at','créé le','soumis le','date soumission','date'],
+  date:['date soumission','soumis le','created_at'],
+  saisieDate:['date de création','date création','date_creation','créé le','date de saisie','date saisie'],
   dept:['département','departement','department','service','direction'],
   echeanceDate:["date d'échéance","date echéance","date echeance","échéance","echeance","deadline","date de planification"],
   fermetureDate:['date fermeture','date de fermeture','date clôture','closed date','closing date'],
+  modifiePar:['modifiée par','modifie par','modified by','modifié par','dernière modification par'],
+  adresse:['adresse','address','adresse civique','adresse complète','rue'],
+  sousCategorie:['sous-catégorie','sous catégorie','sous-categorie','subcategory','sub-category','sous categorie'],
 };
 const TYPE_MAP={'plainte':'Plainte','complaint':'Plainte','réclamation':'Plainte','reclamation':'Plainte','requête':'Requête','requete':'Requête','request':'Requête','demande':'Requête','information':'Information','info':'Information','renseignement':'Information','suggestion':'Suggestion','amélioration':'Suggestion','amelioration':'Suggestion'};
 const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé'};
