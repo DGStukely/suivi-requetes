@@ -801,6 +801,9 @@ async function createInSP(data) {
     RQ_Adresse:        data.adresse       || '',
     RQ_ModifiePar:     data.modifiePar    || '',
   };
+  const token = await getMsalToken();
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
       method: 'POST',
       headers: {
@@ -842,6 +845,9 @@ async function updateInSP(spId, data) {
     RQ_Adresse:        data.adresse       || '',
     RQ_ModifiePar:     data.modifiePar    || '',
   };
+  const token = await getMsalToken();
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
     {
       method: 'POST',
       headers: {
