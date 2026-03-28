@@ -292,7 +292,7 @@
 
     <div class="panel">
       <div class="panel-header">Par priorité</div>
-      <div class="panel-body">
+      <div class="panel-body" id="filter-priority">
         <button class="filter-btn active" onclick="setFilter('priority','all')" data-val="all">Toutes</button>
         <button class="filter-btn" onclick="setFilter('priority','Haute')" data-val="Haute"><span><span class="priority-dot p-haute"></span>Haute</span></button>
         <button class="filter-btn" onclick="setFilter('priority','Moyenne')" data-val="Moyenne"><span><span class="priority-dot p-moyenne"></span>Moyenne</span></button>
@@ -740,7 +740,7 @@ async function getCurrentUser() {
 //   RQ_Auteur → author | RQ_Assigne → assigned | Created → date
 //   RQ_Actions → actions | RQ_DateAction → actionDate
 async function fetchFromSP() {
-  const select = '$select=Id,Title,RQ_Description,RQ_Type,RQ_Statut,RQ_Priorite,RQ_Auteur,RQ_Assigne,RQ_Dept,RQ_Actions,RQ_DateAction,RQ_DateSaisie,RQ_DateEcheance,RQ_DateFermeture,RQ_ResPrevu,RQ_ResReel,Created';
+  const select = '$select=Id,Title,RQ_Description,RQ_Type,RQ_Statut,RQ_Priorite,RQ_Auteur,RQ_Assigne,RQ_Dept,RQ_Actions,RQ_DateAction,RQ_DateSaisie,RQ_DateEcheance,RQ_DateFermeture,RQ_ResPrevu,RQ_ResReel,RQ_Categorie,RQ_SousCategorie,RQ_Adresse,RQ_ModifiePar,Created';
   const orderby = '$orderby=Created desc';
   const top = '$top=5000';
   const headers = await getAuthHeaders();
@@ -768,6 +768,10 @@ async function fetchFromSP() {
     fermetureDate: item.RQ_DateFermeture || '',
     resPrevu:      item.RQ_ResPrevu != null ? item.RQ_ResPrevu : '',
     resReel:       item.RQ_ResReel  != null ? item.RQ_ResReel  : '',
+    categorie:     item.RQ_Categorie    || '',
+    sousCategorie: item.RQ_SousCategorie || '',
+    adresse:       item.RQ_Adresse      || '',
+    modifiePar:    item.RQ_ModifiePar   || '',
     date:          item.Created || new Date().toISOString(),
   }));
 }
@@ -792,10 +796,11 @@ async function createInSP(data) {
     RQ_DateFermeture:  data.fermetureDate || null,
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
+    RQ_Categorie:      data.categorie     || '',
+    RQ_SousCategorie:  data.sousCategorie || '',
+    RQ_Adresse:        data.adresse       || '',
+    RQ_ModifiePar:     data.modifiePar    || '',
   };
-  const token = await getMsalToken();
-  const r = await fetch(
-    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
       method: 'POST',
       headers: {
@@ -832,10 +837,11 @@ async function updateInSP(spId, data) {
     RQ_DateFermeture:  data.fermetureDate || null,
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
+    RQ_Categorie:      data.categorie     || '',
+    RQ_SousCategorie:  data.sousCategorie || '',
+    RQ_Adresse:        data.adresse       || '',
+    RQ_ModifiePar:     data.modifiePar    || '',
   };
-  const token = await getMsalToken();
-  const r = await fetch(
-    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
     {
       method: 'POST',
       headers: {
@@ -928,10 +934,9 @@ async function initApp() {
   }
 
   hideLoading();
+  syncFilterButtons();
   render();
 }
-
-function setSpStatus(state, text) {
   const el = document.getElementById('sp-status-badge');
   el.className = `sp-status ${state}`;
   document.getElementById('sp-status-text').textContent = text;
@@ -1140,7 +1145,6 @@ function seedDemoData() {
 
 function setFilter(key, val) {
   filters[key] = val;
-  // Pour le filtre assigné, le panel est généré dynamiquement — on gère l'état actif manuellement
   if (key === 'assigned') {
     document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.val === val);
@@ -1151,6 +1155,15 @@ function setFilter(key, val) {
     });
   }
   render();
+}
+
+// Synchronise l'état visuel des boutons avec les filtres actifs
+function syncFilterButtons() {
+  ['status','type','priority'].forEach(key => {
+    document.querySelectorAll(`#filter-${key} .filter-btn`).forEach(b => {
+      b.classList.toggle('active', b.dataset.val === filters[key]);
+    });
+  });
 }
 
 function getFiltered() {
@@ -1193,6 +1206,20 @@ function priorityHTML(p) {
 }
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+
+// Convertit n'importe quel format de date en AAAA-MM-JJ pour les champs input[type=date]
+function toInputDate(val) {
+  if (!val) return '';
+  // Format JJ/MM/AAAA HH:MM (Modellium)
+  const m1 = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+  // Format AAAA-MM-JJ (ISO)
+  const m2 = val.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m2) return m2[1];
+  // Format ISO avec T
+  if (val.includes('T')) return val.split('T')[0];
+  return '';
 }
 
 function render() {
@@ -1276,10 +1303,10 @@ function openModal(id=null) {
     document.getElementById('f-categorie').value = e.categorie || '';
     document.getElementById('f-sous-categorie').value = e.sousCategorie || '';
     document.getElementById('f-actions').value  = e.actions || '';
-    document.getElementById('f-action-date').value    = e.actionDate    ? e.actionDate.split('T')[0]    : '';
-    document.getElementById('f-saisie-date').value    = e.saisieDate    ? e.saisieDate.split('T')[0]    : '';
-    document.getElementById('f-echeance-date').value  = e.echeanceDate  ? e.echeanceDate.split('T')[0]  : '';
-    document.getElementById('f-fermeture-date').value = e.fermetureDate ? e.fermetureDate.split('T')[0] : '';
+    document.getElementById('f-action-date').value    = toInputDate(e.actionDate);
+    document.getElementById('f-saisie-date').value    = toInputDate(e.saisieDate);
+    document.getElementById('f-echeance-date').value  = toInputDate(e.echeanceDate);
+    document.getElementById('f-fermeture-date').value = toInputDate(e.fermetureDate);
     document.getElementById('f-res-prevu').value = e.resPrevu !== '' && e.resPrevu != null ? e.resPrevu : '';
     document.getElementById('f-res-reel').value  = e.resReel  !== '' && e.resReel  != null ? e.resReel  : '';
     document.getElementById('echeance-auto-badge').textContent = '';
