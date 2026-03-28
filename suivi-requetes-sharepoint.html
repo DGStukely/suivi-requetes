@@ -541,7 +541,6 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-danger" onclick="deleteFromDetail()" style="margin-right:auto;">✕ Supprimer</button>
       <button class="btn btn-ghost" onclick="closeDetail()">Fermer</button>
       <button class="btn btn-primary" onclick="editFromDetail()">✎ Modifier</button>
     </div>
@@ -642,20 +641,41 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════
-//  CONFIGURATION SHAREPOINT
+//  CONFIGURATION SHAREPOINT + MSAL
 // ═══════════════════════════════════════════════════════════════════
 
+const MSAL_CONFIG = {
+  auth: {
+    clientId: '86484e7b-8b70-4ada-8951-54c73f0a8f0d',
+    authority: 'https://login.microsoftonline.com/common',
+    redirectUri: 'https://dgstukely.github.io/suivi-requetes/suivi-requetes-sharepoint.html'
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+};
+const msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+const SP_SCOPES = ['https://munstukelysud.sharepoint.com/AllSites.Manage'];
+let msalToken = null;
+
+async function getMsalToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    await msalInstance.loginPopup({ scopes: SP_SCOPES });
+  }
+  const account = msalInstance.getAllAccounts()[0];
+  const result = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account })
+    .catch(() => msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account }));
+  msalToken = result.accessToken;
+  return msalToken;
+}
+
 // ── À MODIFIER PAR L'ADMINISTRATEUR ──────────────────────────────
-// URL de votre site SharePoint Online — déjà configuré pour Stukely-Sud
 const SP_DEFAULTS = {
   url:  'https://munstukelysud.sharepoint.com/sites/Doc_Public',
   list: 'SuiviRequetes'
 };
-// Mode SharePoint Online (true) ou on-premises (false)
-// SharePoint Online utilise l'authentification par cookie de session Microsoft 365
-// → les agents doivent être connectés à leur compte Microsoft 365 dans le navigateur
 const SP_ONLINE_MODE = true;
 // ─────────────────────────────────────────────────────────────────
 
@@ -678,28 +698,28 @@ function spApiUrl(path) {
 
 // Récupère le Request Digest (token CSRF requis pour POST/PUT/DELETE)
 // SharePoint Online : utilise le cookie de session Microsoft 365 (connexion via navigateur)
-async function getFormDigest() {
-  const headers = {
+async function getAuthHeaders(extra = {}) {
+  const token = await getMsalToken();
+  return {
     'Accept': 'application/json;odata=verbose',
-    'Content-Type': 'application/json;odata=verbose'
+    'Content-Type': 'application/json;odata=verbose',
+    'Authorization': `Bearer ${token}`,
+    ...extra
   };
-  const fetchOpts = {
-    method: 'POST',
-    headers,
-    credentials: 'include'  // inclut le cookie de session Microsoft 365
-  };
-  const r = await fetch(spApiUrl('contextinfo'), fetchOpts);
-  if (!r.ok) throw new Error(`FormDigest impossible (${r.status}) — êtes-vous connecté à Microsoft 365 ?`);
+}
+
+async function getFormDigest() {
+  const headers = await getAuthHeaders();
+  const r = await fetch(spApiUrl('contextinfo'), { method: 'POST', headers });
+  if (!r.ok) throw new Error(`FormDigest impossible (${r.status})`);
   const d = await r.json();
   return d.d.GetContextWebInformation.FormDigestValue;
 }
 
 // Récupère l'utilisateur connecté
 async function getCurrentUser() {
-  const r = await fetch(spApiUrl('web/currentuser'), {
-    headers: { 'Accept': 'application/json;odata=verbose' },
-    credentials: 'include'
-  });
+  const headers = await getAuthHeaders();
+  const r = await fetch(spApiUrl('web/currentuser'), { headers });
   if (!r.ok) throw new Error(`Utilisateur non récupéré (${r.status})`);
   const d = await r.json();
   return { name: d.d.Title, email: d.d.Email, login: d.d.LoginName };
@@ -715,9 +735,10 @@ async function fetchFromSP() {
   const select = '$select=Id,Title,RQ_Description,RQ_Type,RQ_Statut,RQ_Priorite,RQ_Auteur,RQ_Assigne,RQ_Dept,RQ_Actions,RQ_DateAction,RQ_DateSaisie,RQ_DateEcheance,RQ_DateFermeture,RQ_ResPrevu,RQ_ResReel,Created';
   const orderby = '$orderby=Created desc';
   const top = '$top=5000';
+  const headers = await getAuthHeaders();
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items?${select}&${orderby}&${top}`),
-    { headers: { 'Accept': 'application/json;odata=verbose' }, credentials: 'include' }
+    { headers }
   );
   if (!r.ok) throw new Error(`Erreur lecture liste: ${r.status}`);
   const d = await r.json();
@@ -764,6 +785,7 @@ async function createInSP(data) {
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
   };
+  const token = await getMsalToken();
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
@@ -771,9 +793,9 @@ async function createInSP(data) {
       headers: {
         'Accept': 'application/json;odata=verbose',
         'Content-Type': 'application/json;odata=verbose',
-        'X-RequestDigest': digest
+        'X-RequestDigest': digest,
+        'Authorization': `Bearer ${token}`
       },
-      credentials: 'include',
       body: JSON.stringify(body)
     }
   );
@@ -803,6 +825,7 @@ async function updateInSP(spId, data) {
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
   };
+  const token = await getMsalToken();
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
     {
@@ -812,9 +835,9 @@ async function updateInSP(spId, data) {
         'Content-Type': 'application/json;odata=verbose',
         'X-RequestDigest': digest,
         'IF-MATCH': '*',
-        'X-HTTP-Method': 'MERGE'
+        'X-HTTP-Method': 'MERGE',
+        'Authorization': `Bearer ${token}`
       },
-      credentials: 'include',
       body: JSON.stringify(body)
     }
   );
@@ -824,6 +847,7 @@ async function updateInSP(spId, data) {
 // Supprime un élément dans SP
 async function deleteInSP(spId) {
   const digest = await getFormDigest();
+  const token = await getMsalToken();
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
     {
@@ -832,9 +856,9 @@ async function deleteInSP(spId) {
         'Accept': 'application/json;odata=verbose',
         'X-RequestDigest': digest,
         'IF-MATCH': '*',
-        'X-HTTP-Method': 'DELETE'
-      },
-      credentials: 'include'
+        'X-HTTP-Method': 'DELETE',
+        'Authorization': `Bearer ${token}`
+      }
     }
   );
   if (!r.ok) throw new Error(`Erreur suppression: ${r.status}`);
@@ -1031,8 +1055,9 @@ async function testSpConnection() {
   res.style.color = 'var(--info)';
   res.textContent = '⏳ Test en cours…';
   try {
+  const token = await getMsalToken();
     const r = await fetch(`${url}/_api/web/lists/getbytitle('${encodeURIComponent(list)}')/items?$top=1`, {
-      headers: { 'Accept': 'application/json;odata=verbose' }, credentials: 'include'
+      headers: { 'Accept': 'application/json;odata=verbose', 'Authorization': `Bearer ${token}` }
     });
     if (r.ok) {
       res.style.background = 'rgba(92,184,122,0.1)';
@@ -1372,7 +1397,6 @@ function openDetail(id) {
 }
 function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
 function editFromDetail() { closeDetail(); openModal(detailId); }
-function deleteFromDetail() { closeDetail(); deleteEntry(detailId); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  RAPPORT
