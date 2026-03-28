@@ -328,7 +328,7 @@
 
     <div class="table-wrap">
       <div class="table-header">
-        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Date</div><div>Actions</div>
+        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Date de saisie</div><div>Actions</div>
       </div>
       <div id="table-body"></div>
     </div>
@@ -438,6 +438,10 @@
             <option>Autre</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sous-catégorie</label>
+        <input type="text" class="full" id="f-sous-categorie" placeholder="Sous-catégorie…">
       </div>
       <div style="border-top:1px solid var(--border);margin:8px 0;padding-top:14px;">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent2);margin-bottom:10px;">📅 Dates & délais</div>
@@ -973,6 +977,7 @@ async function saveEntry() {
     author:     document.getElementById('f-author').value,
     assigned:      document.getElementById('f-assigned').value,
     dept:          document.getElementById('f-dept').value,
+    sousCategorie: document.getElementById('f-sous-categorie').value,
     actions:       document.getElementById('f-actions').value,
     actionDate:    document.getElementById('f-action-date').value || '',
     saisieDate:    document.getElementById('f-saisie-date').value || '',
@@ -1237,7 +1242,7 @@ function render() {
       <div>${typeBadge(e.type)}</div>
       <div>${statusBadge(e.status)}</div>
       <div style="font-size:12px;">${priorityHTML(e.priority)}</div>
-      <div class="row-date">${formatDate(e.date)}</div>
+      <div class="row-date">${formatDate(e.saisieDate||e.date)}</div>
       <div class="row-action" onclick="event.stopPropagation()">
         <button class="icon-btn" title="Modifier" onclick="openModal('${e.id}')">✎</button>
         <button class="icon-btn danger" title="Supprimer" onclick="deleteEntry('${e.id}')">✕</button>
@@ -1263,6 +1268,7 @@ function openModal(id=null) {
     document.getElementById('f-author').value   = e.author || '';
     document.getElementById('f-assigned').value = e.assigned || '';
     document.getElementById('f-dept').value     = e.dept || '';
+    document.getElementById('f-sous-categorie').value = e.sousCategorie || '';
     document.getElementById('f-actions').value  = e.actions || '';
     document.getElementById('f-action-date').value    = e.actionDate    ? e.actionDate.split('T')[0]    : '';
     document.getElementById('f-saisie-date').value    = e.saisieDate    ? e.saisieDate.split('T')[0]    : '';
@@ -1275,7 +1281,7 @@ function openModal(id=null) {
     document.getElementById('edit-sp-id').value = e.spId || '';
   } else {
     document.getElementById('modal-title').textContent = 'Nouvelle entrée';
-    ['f-titre','f-desc','f-assigned','f-actions'].forEach(fid=>document.getElementById(fid).value='');
+    ['f-titre','f-desc','f-assigned','f-actions','f-sous-categorie'].forEach(fid=>document.getElementById(fid).value='');
     document.getElementById('f-dept').value          = '';
     document.getElementById('f-action-date').value   = '';
     document.getElementById('f-echeance-date').value = '';
