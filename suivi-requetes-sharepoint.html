@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Plaintes & Requêtes — Stukely-Sud</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1916;
+    --surface2: #242220;
+    --border: #2e2c28;
+    --accent: #e8c547;
+    --accent2: #d4956a;
+    --danger: #e05c5c;
+    --success: #5cb87a;
+    --info: #5b9bd5;
+    --text: #e8e4dc;
+    --muted: #7a7570;
+    --font-display: 'DM Serif Display', serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 13px; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(232,197,71,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(232,197,71,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+
+  /* HEADER */
+  header { position: sticky; top: 0; z-index: 100; background: rgba(15,14,12,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { font-family: var(--font-display); font-size: 1.1rem; color: var(--accent); letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* SP STATUS BAR */
+  .sp-status { display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+  .sp-status .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .sp-status.connecting .dot { background: var(--accent); animation: pulse 1s infinite; }
+  .sp-status.online .dot { background: var(--success); }
+  .sp-status.offline .dot { background: var(--danger); }
+  .sp-status.local .dot { background: var(--muted); }
+  .sp-current-user { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+  /* LAYOUT */
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; min-height: calc(100vh - 64px); }
+
+  /* SIDEBAR */
+  .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; transition: border-color 0.2s; }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-num { font-family: var(--font-display); font-size: 2rem; line-height: 1; margin-bottom: 4px; }
+  .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-card.total .stat-num { color: var(--text); }
+  .stat-card.open .stat-num { color: var(--accent); }
+  .stat-card.progress .stat-num { color: var(--info); }
+  .stat-card.resolved .stat-num { color: var(--success); }
+
+  /* PANELS */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .panel-body { padding: 12px; }
+  .filter-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 10px; background: transparent; border: none; border-radius: 6px; color: var(--muted); font-family: var(--font-mono); font-size: 12px; cursor: pointer; transition: all 0.15s; text-align: left; margin-bottom: 2px; }
+  .filter-btn:hover { background: var(--surface2); color: var(--text); }
+  .filter-btn.active { background: rgba(232,197,71,0.1); color: var(--accent); }
+  .filter-count { background: var(--surface2); border-radius: 20px; padding: 2px 8px; font-size: 10px; color: var(--muted); }
+  .filter-btn.active .filter-count { background: rgba(232,197,71,0.15); color: var(--accent); }
+
+  /* MAIN */
+  .main { display: flex; flex-direction: column; gap: 1rem; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .search-wrap::before { content: '⌕'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+  input[type="text"], select { width: 100%; padding: 9px 12px 9px 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 12px; outline: none; transition: border-color 0.2s; }
+  select { padding-left: 12px; }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+
+  /* BUTTONS */
+  .btn { padding: 9px 16px; border: none; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+  .btn-primary { background: var(--accent); color: #0f0e0c; font-weight: 500; }
+  .btn-primary:hover { background: #f0d060; transform: translateY(-1px); }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-modellium { background: linear-gradient(135deg, #1a3a5c, #1e4d7b); color: #7ec8e3; border: 1px solid #2a5a8c; font-weight: 500; }
+  .btn-modellium:hover { background: linear-gradient(135deg, #1e4d7b, #2460a0); border-color: #7ec8e3; color: #aaddf0; transform: translateY(-1px); }
+  .btn-rapport { background: linear-gradient(135deg, #2a1f3d, #3a2a55); color: #c4a8f0; border: 1px solid #4a3a70; font-weight: 500; }
+  .btn-rapport:hover { background: linear-gradient(135deg, #3a2a55, #4a3570); border-color: #c4a8f0; color: #dcc8ff; transform: translateY(-1px); }
+  .btn-danger { background: rgba(224,92,92,0.15); color: var(--danger); border: 1px solid rgba(224,92,92,0.3); }
+  .btn-danger:hover { background: rgba(224,92,92,0.25); }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .table-header { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 90px 90px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 90px 90px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.15s; cursor: pointer; animation: rowIn 0.3s ease both; }
+  @keyframes rowIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: var(--surface2); }
+  .row-id { font-size: 11px; color: var(--accent); font-weight: 500; }
+  .row-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+  .row-title small { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge::before { content: '●'; font-size: 8px; }
+  .badge-open { background: rgba(232,197,71,0.12); color: var(--accent); }
+  .badge-progress { background: rgba(91,155,213,0.12); color: var(--info); }
+  .badge-resolved { background: rgba(92,184,122,0.12); color: var(--success); }
+  .badge-closed { background: rgba(122,117,112,0.12); color: var(--muted); }
+  .badge-plainte { background: rgba(224,92,92,0.12); color: var(--danger); }
+  .badge-requete { background: rgba(212,149,106,0.12); color: var(--accent2); }
+  .badge-info { background: rgba(91,155,213,0.12); color: var(--info); }
+  .badge-suggestion { background: rgba(92,184,122,0.12); color: var(--success); }
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .p-haute { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .p-moyenne { background: var(--accent); }
+  .p-basse { background: var(--success); }
+  .row-date { color: var(--muted); font-size: 11px; }
+  .row-action { display: flex; gap: 4px; }
+  .icon-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* MODALS */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; animation: modalIn 0.2s ease; }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(-10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--accent); }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  input[type="text"].full, textarea, select.full { width: 100%; padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 12px; outline: none; transition: border-color 0.2s; }
+  textarea { resize: vertical; min-height: 90px; }
+  input[type="text"].full:focus, textarea:focus, select.full:focus { border-color: var(--accent); }
+  .detail-section { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+  .detail-section h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-item { display: flex; flex-direction: column; gap: 3px; }
+  .detail-item .key { font-size: 10px; color: var(--muted); }
+  .detail-item .val { font-size: 12px; color: var(--text); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.3; }
+  .empty h3 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 6px; color: var(--text); opacity: 0.5; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(15,14,12,0.85); z-index: 500; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.hidden { display: none; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: var(--muted); font-size: 12px; }
+
+  /* SP CONFIG MODAL */
+  .sp-config-info { background: rgba(91,155,213,0.08); border: 1px solid rgba(91,155,213,0.2); border-radius: 6px; padding: 12px 14px; font-size: 11px; color: var(--info); line-height: 1.7; }
+  .sp-config-info code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px; }
+
+  /* IMPORT */
+  .import-dropzone { border: 2px dashed var(--border); border-radius: 8px; padding: 36px 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .import-dropzone:hover, .import-dropzone.drag-over { border-color: #7ec8e3; background: rgba(126,200,227,0.05); }
+  .import-dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .import-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .mapping-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mapping-table th { text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .mapping-table td { padding: 5px 8px; border-bottom: 1px solid rgba(46,44,40,0.5); }
+  .mapping-table tr:last-child td { border-bottom: none; }
+  .mapping-table select { padding: 4px 8px; font-size: 11px; background: var(--surface2); }
+  .preview-badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; background: rgba(126,200,227,0.1); color: #7ec8e3; border: 1px solid rgba(126,200,227,0.2); }
+  .import-step { display: none; }
+  .import-step.active { display: block; }
+  .step-indicator { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; transition: all 0.2s; }
+  .step-dot.active { border-color: #7ec8e3; color: #7ec8e3; background: rgba(126,200,227,0.1); }
+  .step-dot.done { border-color: var(--success); color: var(--success); background: rgba(92,184,122,0.1); }
+  .step-line { flex: 1; height: 1px; background: var(--border); }
+  .preview-scroll { max-height: 220px; overflow-y: auto; }
+  .col-chip { display: inline-block; padding: 2px 8px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; color: var(--muted); margin: 2px; }
+  .col-chip.matched { border-color: #7ec8e3; color: #7ec8e3; background: rgba(126,200,227,0.08); }
+
+  /* RAPPORT */
+  .date-range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  input[type="date"] { width: 100%; padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 12px; outline: none; transition: border-color 0.2s; color-scheme: dark; }
+  input[type="date"]:focus { border-color: #c4a8f0; }
+  .rapport-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: 12px; color: var(--muted); text-align: center; }
+  .rapport-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .rapport-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+  .rapport-stat .n { font-family: var(--font-display); font-size: 1.5rem; }
+  .rapport-stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .checkbox-label { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 11px; cursor: pointer; transition: all 0.15s; color: var(--muted); }
+  .checkbox-label:hover { border-color: #c4a8f0; color: var(--text); }
+  .checkbox-label input { width: auto; padding: 0; accent-color: #c4a8f0; }
+  .checkbox-label.checked { border-color: #c4a8f0; color: #c4a8f0; background: rgba(196,168,240,0.07); }
+
+  /* SYNC INDICATOR */
+  .sync-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 8px; border-radius: 3px; }
+  .sync-badge.sp { background: rgba(91,155,213,0.12); color: var(--info); border: 1px solid rgba(91,155,213,0.2); }
+  .sync-badge.local { background: rgba(122,117,112,0.12); color: var(--muted); border: 1px solid var(--border); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* TOAST */
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 16px; font-size: 12px; color: var(--text); animation: toastIn 0.3s ease; max-width: 320px; }
+  @keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+  .toast.success { border-left-color: var(--success); }
+  .toast.danger { border-left-color: var(--danger); }
+  .toast.info { border-left-color: var(--info); }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: grid; grid-template-columns: 1fr 1fr; }
+    .table-header, .row { grid-template-columns: 60px 1fr 90px 90px; }
+    .table-header > *:nth-child(5), .table-header > *:nth-child(6),
+    .row > *:nth-child(5), .row > *:nth-child(6) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Connexion à SharePoint…</div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Suivi Plaintes &amp; Requêtes — Stukely-Sud
+  </div>
+  <div class="header-actions">
+    <div class="sp-current-user" id="current-user-display" style="display:none;">
+      👤 <span id="current-user-name"></span>
+    </div>
+    <div class="sp-status connecting" id="sp-status-badge">
+      <div class="dot"></div>
+      <span id="sp-status-text">Connexion…</span>
+    </div>
+    <button class="icon-btn" title="Configurer SharePoint" onclick="openSpConfig()" style="font-size:15px;">⚙</button>
+    <span style="color:var(--muted);font-size:11px;" id="date-display"></span>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="stats-grid">
+      <div class="stat-card total"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total</div></div>
+      <div class="stat-card open"><div class="stat-num" id="stat-open">—</div><div class="stat-label">Ouvert</div></div>
+      <div class="stat-card progress"><div class="stat-num" id="stat-progress">—</div><div class="stat-label">En cours</div></div>
+      <div class="stat-card resolved"><div class="stat-num" id="stat-resolved">—</div><div class="stat-label">Résolu</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Source données</span>
+        <span class="sync-badge" id="data-source-badge">…</span>
+      </div>
+      <div class="panel-body" style="font-size:11px;color:var(--muted);line-height:1.7;">
+        <div id="sp-info-panel">Vérification de la connexion SharePoint…</div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px;font-size:11px;" onclick="forceSyncFromSP()">↻ Rafraîchir</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Par statut</div>
+      <div class="panel-body" id="filter-status">
+        <button class="filter-btn active" onclick="setFilter('status','all')" data-val="all">Tous <span class="filter-count" id="fc-all">0</span></button>
+        <button class="filter-btn" onclick="setFilter('status','Ouvert')" data-val="Ouvert">Ouvert <span class="filter-count" id="fc-open">0</span></button>
+        <button class="filter-btn" onclick="setFilter('status','En cours')" data-val="En cours">En cours <span class="filter-count" id="fc-prog">0</span></button>
+        <button class="filter-btn" onclick="setFilter('status','Résolu')" data-val="Résolu">Résolu <span class="filter-count" id="fc-resolved">0</span></button>
+        <button class="filter-btn" onclick="setFilter('status','Fermé')" data-val="Fermé">Fermé <span class="filter-count" id="fc-closed">0</span></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Par type</div>
+      <div class="panel-body" id="filter-type">
+        <button class="filter-btn active" onclick="setFilter('type','all')" data-val="all">Tous</button>
+        <button class="filter-btn" onclick="setFilter('type','Plainte')" data-val="Plainte">Plainte</button>
+        <button class="filter-btn" onclick="setFilter('type','Requête')" data-val="Requête">Requête</button>
+        <button class="filter-btn" onclick="setFilter('type','Information')" data-val="Information">Information</button>
+        <button class="filter-btn" onclick="setFilter('type','Suggestion')" data-val="Suggestion">Suggestion</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Par priorité</div>
+      <div class="panel-body">
+        <button class="filter-btn active" onclick="setFilter('priority','all')" data-val="all">Toutes</button>
+        <button class="filter-btn" onclick="setFilter('priority','Haute')" data-val="Haute"><span><span class="priority-dot p-haute"></span>Haute</span></button>
+        <button class="filter-btn" onclick="setFilter('priority','Moyenne')" data-val="Moyenne"><span><span class="priority-dot p-moyenne"></span>Moyenne</span></button>
+        <button class="filter-btn" onclick="setFilter('priority','Basse')" data-val="Basse"><span><span class="priority-dot p-basse"></span>Basse</span></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Par personne assignée</div>
+      <div class="panel-body" id="filter-assigned">
+        <button class="filter-btn active" onclick="setFilter('assigned','all')" data-val="all">Toutes <span class="filter-count" id="fc-assigned-all">0</span></button>
+        <button class="filter-btn" onclick="setFilter('assigned','__none__')" data-val="__none__">Non assigné <span class="filter-count" id="fc-assigned-none">0</span></button>
+        <div id="filter-assigned-dynamic"></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <input type="text" id="search-input" placeholder="Rechercher…" oninput="render()">
+      </div>
+      <select id="sort-select" onchange="render()" style="width:auto;padding-left:10px;">
+        <option value="date-desc">Plus récent</option>
+        <option value="date-asc">Plus ancien</option>
+        <option value="priority">Priorité</option>
+        <option value="status">Statut</option>
+      </select>
+      <button class="btn btn-modellium" onclick="openImportModal()">⬆ Importer Modellium</button>
+      <button class="btn btn-rapport" onclick="openRapportModal()">🖨 Rapport</button>
+      <button class="btn btn-primary" onclick="openModal()">＋ Nouvelle entrée</button>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-header">
+        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Date</div><div>Actions</div>
+      </div>
+      <div id="table-body"></div>
+    </div>
+  </main>
+</div>
+
+<!-- SP CONFIG MODAL -->
+<div class="overlay" id="sp-config-overlay">
+  <div class="modal" style="width:580px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--info);">⚙ Configuration SharePoint</div>
+      <button class="icon-btn" onclick="closeSpConfig()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sp-config-info">
+        <strong>SharePoint Online (Microsoft 365)</strong> — Site configuré pour Stukely-Sud.<br>
+        URL du site : <code>https://munstukelysud.sharepoint.com/sites/Doc_Public</code><br>
+        Les agents doivent être <strong>connectés à leur compte Microsoft 365</strong> dans le navigateur pour que la synchronisation fonctionne.
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL du site SharePoint *</label>
+        <input type="text" class="full" id="sp-url" placeholder="https://munstukelysud.sharepoint.com/sites/Doc_Public">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nom de la liste SharePoint *</label>
+        <input type="text" class="full" id="sp-list" placeholder="SuiviRequetes">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mode d'authentification</label>
+        <select class="full" id="sp-auth">
+          <option value="windows">Windows Intégré (NTLM/Kerberos) — recommandé on-premises</option>
+          <option value="forms">Authentification par formulaire</option>
+        </select>
+      </div>
+      <div class="sp-config-info" style="color:var(--muted);background:rgba(122,117,112,0.08);border-color:var(--border);">
+        💡 <strong>Prérequis :</strong> Les agents doivent être connectés à <strong>Microsoft 365</strong> dans leur navigateur (Outlook, Teams, ou portal.office.com) avant d'ouvrir l'application. L'authentification se fait automatiquement via le cookie de session.<br><br>
+        <strong>Mode hors-ligne :</strong> Si SharePoint est inaccessible, l'application bascule en mode local (localStorage).
+      </div>
+      <div id="sp-test-result" style="display:none;padding:10px;border-radius:6px;font-size:12px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="testSpConnection()">🔌 Tester la connexion</button>
+      <button class="btn btn-ghost" onclick="closeSpConfig()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveSpConfig()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Nouvelle entrée</div>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <input type="hidden" id="edit-sp-id">
+      <div class="form-group">
+        <label class="form-label">Titre *</label>
+        <input type="text" class="full" id="f-titre" placeholder="Décrivez brièvement…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="full" id="f-desc" placeholder="Détails supplémentaires…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Type *</label>
+          <select class="full" id="f-type">
+            <option>Plainte</option><option>Requête</option><option>Information</option><option>Suggestion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priorité</label>
+          <select class="full" id="f-priority">
+            <option>Haute</option><option selected>Moyenne</option><option>Basse</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Statut</label>
+          <select class="full" id="f-status">
+            <option>Ouvert</option><option>En cours</option><option>Résolu</option><option>Fermé</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Auteur</label>
+          <input type="text" class="full" id="f-author" placeholder="Nom de l'auteur">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Assigné à</label>
+          <input type="text" class="full" id="f-assigned" placeholder="Responsable…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Département</label>
+          <select class="full" id="f-dept">
+            <option value="">— Aucun —</option>
+            <option>Travaux publics</option>
+            <option>Administration</option>
+            <option>Urbanisme</option>
+            <option>Loisirs</option>
+            <option>Environnement</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:8px 0;padding-top:14px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent2);margin-bottom:10px;">📅 Dates & délais</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date de saisie</label>
+            <input type="date" id="f-saisie-date" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;padding:9px 12px;width:100%;color-scheme:dark;" oninput="calcEcheance()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Temps de résolution prévu (jours)
+              <span style="color:var(--muted);font-size:9px;font-weight:400;"> → calcule l'échéance</span>
+            </label>
+            <input type="number" class="full" id="f-res-prevu" min="0" placeholder="ex: 5" style="padding-left:12px;" oninput="calcEcheance()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">
+              Date d'échéance
+              <span style="color:var(--accent2);font-size:9px;" id="echeance-auto-badge"></span>
+            </label>
+            <input type="date" id="f-echeance-date" style="background:var(--surface2);border:1px solid rgba(224,92,92,0.3);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;padding:9px 12px;width:100%;color-scheme:dark;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Date de fermeture
+              <span style="color:var(--muted);font-size:9px;font-weight:400;"> → calcule le temps réel</span>
+            </label>
+            <input type="date" id="f-fermeture-date" style="background:var(--surface2);border:1px solid rgba(92,184,122,0.3);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;padding:9px 12px;width:100%;color-scheme:dark;" oninput="calcResReel()">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Temps de résolution réel (jours)
+            <span style="color:var(--success);font-size:9px;" id="res-reel-auto-badge"></span>
+          </label>
+          <input type="number" class="full" id="f-res-reel" min="0" placeholder="Calculé automatiquement à la fermeture" style="padding-left:12px;">
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:4px 0;padding-top:14px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--info);margin-bottom:10px;">⚡ Suivi des actions réalisées</div>
+        <div class="form-group">
+          <label class="form-label">Actions réalisées par l'agent</label>
+          <textarea class="full" id="f-actions" placeholder="Décrivez les actions posées : appels, courriels, visites, travaux effectués…" style="min-height:80px;border-color:rgba(91,155,213,0.3);"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date de réalisation</label>
+          <input type="date" id="f-action-date" style="background:var(--surface2);border-color:rgba(91,155,213,0.3);">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="detail-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="d-title"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="d-id"></div>
+      </div>
+      <button class="icon-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <h4>Informations générales</h4>
+        <div class="detail-grid">
+          <div class="detail-item"><span class="key">Type</span><span class="val" id="d-type"></span></div>
+          <div class="detail-item"><span class="key">Statut</span><span class="val" id="d-status"></span></div>
+          <div class="detail-item"><span class="key">Priorité</span><span class="val" id="d-priority"></span></div>
+          <div class="detail-item"><span class="key">Département</span><span class="val" id="d-dept"></span></div>
+          <div class="detail-item"><span class="key">Auteur</span><span class="val" id="d-author"></span></div>
+          <div class="detail-item"><span class="key">Assigné à</span><span class="val" id="d-assigned"></span></div>
+          <div class="detail-item"><span class="key">Date création SP</span><span class="val" id="d-date"></span></div>
+          <div class="detail-item"><span class="key">Date de saisie</span><span class="val" id="d-saisie-date" style="color:var(--accent);"></span></div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <h4 style="color:var(--accent2);">📅 Dates & délais</h4>
+        <div class="detail-grid">
+          <div class="detail-item"><span class="key">Date d'échéance</span><span class="val" id="d-echeance-date" style="color:var(--danger);"></span></div>
+          <div class="detail-item"><span class="key">Date de fermeture</span><span class="val" id="d-fermeture-date" style="color:var(--success);"></span></div>
+          <div class="detail-item"><span class="key">Résolution prévue</span><span class="val" id="d-res-prevu"></span></div>
+          <div class="detail-item"><span class="key">Résolution réelle</span><span class="val" id="d-res-reel"></span></div>
+        </div>
+      </div>
+      <div class="detail-section"><h4>Description</h4><div style="font-size:12px;line-height:1.7;" id="d-desc"></div></div>
+      <div class="detail-section" id="d-actions-section">
+        <h4 style="color:var(--info);">⚡ Actions réalisées</h4>
+        <div style="font-size:12px;line-height:1.7;white-space:pre-wrap;" id="d-actions"></div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);" id="d-action-date-wrap">
+          <span>📅 Date de réalisation :</span>
+          <span id="d-action-date" style="color:var(--info);font-weight:500;"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteFromDetail()" style="margin-right:auto;">✕ Supprimer</button>
+      <button class="btn btn-ghost" onclick="closeDetail()">Fermer</button>
+      <button class="btn btn-primary" onclick="editFromDetail()">✎ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- RAPPORT MODAL -->
+<div class="overlay" id="rapport-overlay">
+  <div class="modal" style="width:560px;">
+    <div class="modal-header">
+      <div><div class="modal-title" style="color:#c4a8f0;">🖨 Générer un rapport</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Plaintes & requêtes — Stukely-Sud</div></div>
+      <button class="icon-btn" onclick="closeRapportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Période du rapport</label>
+        <div class="date-range-row">
+          <div class="form-group"><label class="form-label" style="font-size:10px;">Du</label><input type="date" id="rpt-date-from" onchange="updateRapportPreview()"></div>
+          <div class="form-group"><label class="form-label" style="font-size:10px;">Au</label><input type="date" id="rpt-date-to" onchange="updateRapportPreview()"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Types à inclure</label>
+        <div class="checkbox-group" id="rpt-types">
+          <label class="checkbox-label checked"><input type="checkbox" value="Plainte" checked onchange="toggleCheck(this);updateRapportPreview()"> Plainte</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="Requête" checked onchange="toggleCheck(this);updateRapportPreview()"> Requête</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="Information" checked onchange="toggleCheck(this);updateRapportPreview()"> Information</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="Suggestion" checked onchange="toggleCheck(this);updateRapportPreview()"> Suggestion</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Statuts à inclure</label>
+        <div class="checkbox-group" id="rpt-statuts">
+          <label class="checkbox-label checked"><input type="checkbox" value="Ouvert" checked onchange="toggleCheck(this);updateRapportPreview()"> Ouvert</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="En cours" checked onchange="toggleCheck(this);updateRapportPreview()"> En cours</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="Résolu" checked onchange="toggleCheck(this);updateRapportPreview()"> Résolu</label>
+          <label class="checkbox-label checked"><input type="checkbox" value="Fermé" checked onchange="toggleCheck(this);updateRapportPreview()"> Fermé</label>
+        </div>
+      </div>
+      <div class="rapport-preview" id="rapport-preview"><div>Sélectionnez une période pour prévisualiser le rapport.</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRapportModal()">Annuler</button>
+      <button class="btn btn-rapport" id="rpt-btn-gen" onclick="genererRapport()" disabled>🖨 Générer le rapport</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODELLIUM MODAL -->
+<div class="overlay" id="import-overlay">
+  <div class="modal" style="width:620px;">
+    <div class="modal-header">
+      <div><div class="modal-title" style="color:#7ec8e3;">⬆ Importer depuis Modellium</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Portail citoyen V+</div></div>
+      <button class="icon-btn" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="step-indicator">
+        <div class="step-dot active" id="si-1">1</div><div class="step-line"></div>
+        <div class="step-dot" id="si-2">2</div><div class="step-line"></div>
+        <div class="step-dot" id="si-3">3</div>
+        <span style="margin-left:4px;">Étape <span id="step-label">1 — Chargement du fichier</span></span>
+      </div>
+      <div class="import-step active" id="import-step-1">
+        <div class="import-dropzone" id="dropzone">
+          <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+          <div id="dz-icon" style="font-size:2rem;margin-bottom:10px;opacity:0.5;">📂</div>
+          <div id="dz-title" style="font-size:13px;color:var(--text);">Glisser-déposer votre export Modellium ici</div>
+          <div class="import-hint" id="dz-hint">ou cliquez pour parcourir — CSV, XLSX, XLS acceptés</div>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:rgba(126,200,227,0.06);border:1px solid rgba(126,200,227,0.15);border-radius:6px;font-size:11px;color:#7ec8e3;line-height:1.6;">
+          <strong>💡 Comment exporter depuis Modellium V+ :</strong><br>Requêtes → Exporter → Format CSV ou Excel → Toutes les colonnes
+        </div>
+      </div>
+      <div class="import-step" id="import-step-2">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Colonnes détectées — associez chaque colonne Modellium à un champ de l'application :</div>
+        <div id="col-chips" style="margin-bottom:14px;"></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <table class="mapping-table"><thead><tr><th>Champ application</th><th>Colonne Modellium</th><th>Aperçu</th></tr></thead><tbody id="mapping-rows"></tbody></table>
+        </div>
+      </div>
+      <div class="import-step" id="import-step-3">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;color:var(--text);"><span id="preview-count" style="color:#7ec8e3;font-weight:500;"></span> entrées prêtes à importer</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="skip-dupes" checked style="width:auto;padding:0;"> Ignorer les doublons</label>
+        </div>
+        <div class="preview-scroll" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <table class="mapping-table"><thead><tr><th>Titre</th><th>Type</th><th>Statut</th><th>Priorité</th><th>Auteur</th></tr></thead><tbody id="preview-rows"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="import-btn-back" onclick="importPrev()" style="display:none;">← Retour</button>
+      <button class="btn btn-ghost" onclick="closeImportModal()">Annuler</button>
+      <button class="btn btn-modellium" id="import-btn-next" onclick="importNext()" disabled>Continuer →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIGURATION SHAREPOINT
+// ═══════════════════════════════════════════════════════════════════
+
+// ── À MODIFIER PAR L'ADMINISTRATEUR ──────────────────────────────
+// URL de votre site SharePoint Online — déjà configuré pour Stukely-Sud
+const SP_DEFAULTS = {
+  url:  'https://munstukelysud.sharepoint.com/sites/Doc_Public',
+  list: 'SuiviRequetes'
+};
+// Mode SharePoint Online (true) ou on-premises (false)
+// SharePoint Online utilise l'authentification par cookie de session Microsoft 365
+// → les agents doivent être connectés à leur compte Microsoft 365 dans le navigateur
+const SP_ONLINE_MODE = true;
+// ─────────────────────────────────────────────────────────────────
+
+let SP_CONFIG = JSON.parse(localStorage.getItem('sp-config') || 'null') || { ...SP_DEFAULTS };
+let spOnline  = false;      // true = connecté à SharePoint
+let currentUser = null;     // objet utilisateur SP courant
+let entries = [];           // données en mémoire
+let idCounter = parseInt(localStorage.getItem('rq-counter') || '100');
+let filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all' };
+let detailId = null;
+
+// ═══════════════════════════════════════════════════════════════════
+//  SHAREPOINT REST API HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+// Construit l'URL de base de l'API REST SP
+function spApiUrl(path) {
+  return `${SP_CONFIG.url}/_api/${path}`;
+}
+
+// Récupère le Request Digest (token CSRF requis pour POST/PUT/DELETE)
+// SharePoint Online : utilise le cookie de session Microsoft 365 (connexion via navigateur)
+async function getFormDigest() {
+  const headers = {
+    'Accept': 'application/json;odata=verbose',
+    'Content-Type': 'application/json;odata=verbose'
+  };
+  const fetchOpts = {
+    method: 'POST',
+    headers,
+    credentials: 'include'  // inclut le cookie de session Microsoft 365
+  };
+  const r = await fetch(spApiUrl('contextinfo'), fetchOpts);
+  if (!r.ok) throw new Error(`FormDigest impossible (${r.status}) — êtes-vous connecté à Microsoft 365 ?`);
+  const d = await r.json();
+  return d.d.GetContextWebInformation.FormDigestValue;
+}
+
+// Récupère l'utilisateur connecté
+async function getCurrentUser() {
+  const r = await fetch(spApiUrl('web/currentuser'), {
+    headers: { 'Accept': 'application/json;odata=verbose' },
+    credentials: 'include'
+  });
+  if (!r.ok) throw new Error(`Utilisateur non récupéré (${r.status})`);
+  const d = await r.json();
+  return { name: d.d.Title, email: d.d.Email, login: d.d.LoginName };
+}
+
+// Lit toutes les entrées de la liste SP
+// Colonnes SP → champs internes :
+//   Title → titre | RQ_Description → desc | RQ_Type → type
+//   RQ_Statut → status | RQ_Priorite → priority
+//   RQ_Auteur → author | RQ_Assigne → assigned | Created → date
+//   RQ_Actions → actions | RQ_DateAction → actionDate
+async function fetchFromSP() {
+  const select = '$select=Id,Title,RQ_Description,RQ_Type,RQ_Statut,RQ_Priorite,RQ_Auteur,RQ_Assigne,RQ_Dept,RQ_Actions,RQ_DateAction,RQ_DateSaisie,RQ_DateEcheance,RQ_DateFermeture,RQ_ResPrevu,RQ_ResReel,Created';
+  const orderby = '$orderby=Created desc';
+  const top = '$top=5000';
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items?${select}&${orderby}&${top}`),
+    { headers: { 'Accept': 'application/json;odata=verbose' }, credentials: 'include' }
+  );
+  if (!r.ok) throw new Error(`Erreur lecture liste: ${r.status}`);
+  const d = await r.json();
+  return d.d.results.map(item => ({
+    id:         `RQ-${item.Id}`,
+    spId:       item.Id,
+    titre:      item.Title || '',
+    desc:       item.RQ_Description || '',
+    type:       item.RQ_Type || 'Requête',
+    status:     item.RQ_Statut || 'Ouvert',
+    priority:   item.RQ_Priorite || 'Moyenne',
+    author:     item.RQ_Auteur || '',
+    assigned:      item.RQ_Assigne || '',
+    dept:          item.RQ_Dept || '',
+    actions:       item.RQ_Actions || '',
+    actionDate:    item.RQ_DateAction || '',
+    saisieDate:    item.RQ_DateSaisie || '',
+    echeanceDate:  item.RQ_DateEcheance || '',
+    fermetureDate: item.RQ_DateFermeture || '',
+    resPrevu:      item.RQ_ResPrevu != null ? item.RQ_ResPrevu : '',
+    resReel:       item.RQ_ResReel  != null ? item.RQ_ResReel  : '',
+    date:          item.Created || new Date().toISOString(),
+  }));
+}
+
+// Crée un nouvel élément dans la liste SP
+async function createInSP(data) {
+  const digest = await getFormDigest();
+  const body = {
+    __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
+    Title:           data.titre,
+    RQ_Description:  data.desc,
+    RQ_Type:         data.type,
+    RQ_Statut:       data.status,
+    RQ_Priorite:     data.priority,
+    RQ_Auteur:         data.author,
+    RQ_Assigne:        data.assigned,
+    RQ_Dept:           data.dept || '',
+    RQ_Actions:        data.actions || '',
+    RQ_DateAction:     data.actionDate    || null,
+    RQ_DateSaisie:     data.saisieDate    || null,
+    RQ_DateEcheance:   data.echeanceDate  || null,
+    RQ_DateFermeture:  data.fermetureDate || null,
+    RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
+    RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
+  };
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json;odata=verbose',
+        'Content-Type': 'application/json;odata=verbose',
+        'X-RequestDigest': digest
+      },
+      credentials: 'include',
+      body: JSON.stringify(body)
+    }
+  );
+  if (!r.ok) throw new Error(`Erreur création: ${r.status}`);
+  const d = await r.json();
+  return d.d.Id;  // ID assigné par SharePoint
+}
+
+// Met à jour un élément existant dans SP
+async function updateInSP(spId, data) {
+  const digest = await getFormDigest();
+  const body = {
+    __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
+    Title:           data.titre,
+    RQ_Description:  data.desc,
+    RQ_Type:         data.type,
+    RQ_Statut:       data.status,
+    RQ_Priorite:     data.priority,
+    RQ_Auteur:         data.author,
+    RQ_Assigne:        data.assigned,
+    RQ_Dept:           data.dept || '',
+    RQ_Actions:        data.actions || '',
+    RQ_DateAction:     data.actionDate    || null,
+    RQ_DateSaisie:     data.saisieDate    || null,
+    RQ_DateEcheance:   data.echeanceDate  || null,
+    RQ_DateFermeture:  data.fermetureDate || null,
+    RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
+    RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
+  };
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json;odata=verbose',
+        'Content-Type': 'application/json;odata=verbose',
+        'X-RequestDigest': digest,
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'MERGE'
+      },
+      credentials: 'include',
+      body: JSON.stringify(body)
+    }
+  );
+  if (!r.ok) throw new Error(`Erreur mise à jour: ${r.status}`);
+}
+
+// Supprime un élément dans SP
+async function deleteInSP(spId) {
+  const digest = await getFormDigest();
+  const r = await fetch(
+    spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items(${spId})`),
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json;odata=verbose',
+        'X-RequestDigest': digest,
+        'IF-MATCH': '*',
+        'X-HTTP-Method': 'DELETE'
+      },
+      credentials: 'include'
+    }
+  );
+  if (!r.ok) throw new Error(`Erreur suppression: ${r.status}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INITIALISATION ET CONNEXION
+// ═══════════════════════════════════════════════════════════════════
+
+async function initApp() {
+  showLoading('Connexion à SharePoint…');
+  document.getElementById('date-display').textContent =
+    new Date().toLocaleDateString('fr-CA', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  try {
+    // Tente de récupérer l'utilisateur courant (vérifie la connexion)
+    currentUser = await getCurrentUser();
+    spOnline = true;
+    setSpStatus('online', `Connecté — ${SP_CONFIG.list}`);
+
+    // Affiche l'utilisateur
+    document.getElementById('current-user-name').textContent = currentUser.name;
+    document.getElementById('current-user-display').style.display = 'flex';
+
+    // Pré-remplir auteur dans le formulaire
+    document.getElementById('f-author').value = currentUser.name;
+
+    // Charge les données depuis SP
+    showLoading('Chargement des données…');
+    entries = await fetchFromSP();
+    saveLocal();
+
+    document.getElementById('sp-info-panel').innerHTML =
+      `<span style="color:var(--success);">✓ SharePoint connecté</span><br>
+       Liste : <strong>${SP_CONFIG.list}</strong><br>
+       ${entries.length} entrée(s) chargée(s)<br>
+       Utilisateur : ${currentUser.name}`;
+    setSyncBadge('sp');
+
+  } catch(err) {
+    spOnline = false;
+    setSpStatus('offline', 'Hors-ligne (mode local)');
+    console.warn('SP non accessible:', err.message);
+
+    // Fallback : données locales
+    const local = localStorage.getItem('rq-entries');
+    entries = local ? JSON.parse(local) : [];
+
+    // Si aucune donnée locale, charger les données de démonstration
+    if (entries.length === 0) seedDemoData();
+
+    document.getElementById('sp-info-panel').innerHTML =
+      `<span style="color:var(--danger);">✗ SharePoint inaccessible</span><br>
+       <span style="color:var(--muted);font-size:10px;">${err.message}</span><br><br>
+       <strong>Vérifiez que vous êtes connecté à Microsoft 365</strong> dans votre navigateur (ouvrez portal.office.com ou outlook.office.com).<br><br>
+       Mode local actif — données sauvegardées localement.`;
+    setSyncBadge('local');
+    toast('Mode hors-ligne — données locales utilisées', 'info');
+  }
+
+  hideLoading();
+  render();
+}
+
+function setSpStatus(state, text) {
+  const el = document.getElementById('sp-status-badge');
+  el.className = `sp-status ${state}`;
+  document.getElementById('sp-status-text').textContent = text;
+}
+
+function setSyncBadge(mode) {
+  const el = document.getElementById('data-source-badge');
+  if (mode === 'sp') {
+    el.className = 'sync-badge sp';
+    el.textContent = '● SharePoint';
+  } else {
+    el.className = 'sync-badge local';
+    el.textContent = '● Local';
+  }
+}
+
+async function forceSyncFromSP() {
+  if (!spOnline) { toast('SharePoint non accessible — tentative de reconnexion…','info'); initApp(); return; }
+  showLoading('Synchronisation…');
+  try {
+    entries = await fetchFromSP();
+    saveLocal();
+    hideLoading();
+    render();
+    toast(`${entries.length} entrée(s) synchronisée(s) depuis SharePoint ✓`);
+  } catch(e) {
+    hideLoading();
+    toast('Erreur synchronisation: ' + e.message, 'danger');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CRUD — CRÉER / MODIFIER / SUPPRIMER
+// ═══════════════════════════════════════════════════════════════════
+
+async function saveEntry() {
+  const titre = document.getElementById('f-titre').value.trim();
+  if (!titre) { toast('Le titre est requis.','danger'); return; }
+  const id   = document.getElementById('edit-id').value;
+  const spId = document.getElementById('edit-sp-id').value;
+  const data = {
+    titre,
+    desc:       document.getElementById('f-desc').value,
+    type:       document.getElementById('f-type').value,
+    priority:   document.getElementById('f-priority').value,
+    status:     document.getElementById('f-status').value,
+    author:     document.getElementById('f-author').value,
+    assigned:      document.getElementById('f-assigned').value,
+    dept:          document.getElementById('f-dept').value,
+    actions:       document.getElementById('f-actions').value,
+    actionDate:    document.getElementById('f-action-date').value || '',
+    saisieDate:    document.getElementById('f-saisie-date').value || '',
+    echeanceDate:  document.getElementById('f-echeance-date').value || '',
+    fermetureDate: document.getElementById('f-fermeture-date').value || '',
+    resPrevu:      document.getElementById('f-res-prevu').value,
+    resReel:       document.getElementById('f-res-reel').value,
+  };
+
+  if (id) {
+    // MISE À JOUR
+    const idx = entries.findIndex(e => e.id === id);
+    entries[idx] = { ...entries[idx], ...data };
+    saveLocal();
+    render();
+    closeModal();
+    toast('Entrée mise à jour ✓');
+    if (spOnline && spId) {
+      try {
+        await updateInSP(parseInt(spId), data);
+        toast('Synchronisé avec SharePoint ✓');
+      } catch(e) { toast('Sauvegardé localement — sync SP échouée: ' + e.message, 'danger'); }
+    }
+  } else {
+    // CRÉATION
+    let newId = `RQ-${++idCounter}`;
+    const entry = { id: newId, spId: null, date: new Date().toISOString(), ...data };
+    entries.unshift(entry);
+    saveLocal();
+    render();
+    closeModal();
+    toast('Entrée créée ✓');
+    if (spOnline) {
+      try {
+        const spNewId = await createInSP(data);
+        // Met à jour l'entrée locale avec le vrai ID SP
+        const idx = entries.findIndex(e => e.id === newId);
+        entries[idx].spId = spNewId;
+        entries[idx].id   = `RQ-${spNewId}`;
+        saveLocal();
+        render();
+        toast(`Enregistré dans SharePoint (RQ-${spNewId}) ✓`);
+      } catch(e) { toast('Sauvegardé localement — sync SP échouée: ' + e.message, 'danger'); }
+    }
+  }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Supprimer cette entrée ?')) return;
+  const entry = entries.find(e => e.id === id);
+  entries = entries.filter(e => e.id !== id);
+  saveLocal();
+  render();
+  toast('Entrée supprimée','danger');
+  if (spOnline && entry?.spId) {
+    try {
+      await deleteInSP(entry.spId);
+    } catch(e) { toast('Supprimé localement — sync SP échouée: ' + e.message, 'danger'); }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG SP MODAL
+// ═══════════════════════════════════════════════════════════════════
+
+function openSpConfig() {
+  document.getElementById('sp-url').value  = SP_CONFIG.url;
+  document.getElementById('sp-list').value = SP_CONFIG.list;
+  document.getElementById('sp-test-result').style.display = 'none';
+  document.getElementById('sp-config-overlay').classList.add('open');
+}
+function closeSpConfig() { document.getElementById('sp-config-overlay').classList.remove('open'); }
+
+async function testSpConnection() {
+  const url  = document.getElementById('sp-url').value.trim();
+  const list = document.getElementById('sp-list').value.trim();
+  const res  = document.getElementById('sp-test-result');
+  res.style.display = 'block';
+  res.style.background = 'rgba(91,155,213,0.1)';
+  res.style.color = 'var(--info)';
+  res.textContent = '⏳ Test en cours…';
+  try {
+    const r = await fetch(`${url}/_api/web/lists/getbytitle('${encodeURIComponent(list)}')/items?$top=1`, {
+      headers: { 'Accept': 'application/json;odata=verbose' }, credentials: 'include'
+    });
+    if (r.ok) {
+      res.style.background = 'rgba(92,184,122,0.1)';
+      res.style.color = 'var(--success)';
+      res.textContent = '✓ Connexion réussie — liste accessible !';
+    } else {
+      throw new Error(`HTTP ${r.status}`);
+    }
+  } catch(e) {
+    res.style.background = 'rgba(224,92,92,0.1)';
+    res.style.color = 'var(--danger)';
+    res.textContent = `✗ Échec : ${e.message}. Vérifiez l'URL et le nom de la liste.`;
+  }
+}
+
+function saveSpConfig() {
+  SP_CONFIG.url  = document.getElementById('sp-url').value.trim();
+  SP_CONFIG.list = document.getElementById('sp-list').value.trim();
+  localStorage.setItem('sp-config', JSON.stringify(SP_CONFIG));
+  closeSpConfig();
+  toast('Configuration enregistrée — reconnexion…','info');
+  initApp();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UTILITAIRES LOCAUX
+// ═══════════════════════════════════════════════════════════════════
+
+function saveLocal() {
+  localStorage.setItem('rq-entries',  JSON.stringify(entries));
+  localStorage.setItem('rq-counter',  idCounter);
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg || 'Chargement…';
+  document.getElementById('loading-overlay').classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+function toast(msg, type='success') {
+  const w = document.createElement('div');
+  w.className = `toast ${type}`;
+  w.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(w);
+  setTimeout(() => w.remove(), 4000);
+}
+
+function seedDemoData() {
+  const seeds = [
+    { titre:'Problème de facturation incorrect', type:'Plainte', priority:'Haute', status:'Ouvert', author:'M. D.', assigned:'J. M.', desc:'Facture du mois de mars incorrecte, montant facturé deux fois.' },
+    { titre:'Demande de remboursement', type:'Requête', priority:'Moyenne', status:'En cours', author:'P. L.', assigned:'S. B.', desc:'Demande de remboursement suite à annulation de commande #4821.' },
+    { titre:'Délais de livraison trop longs', type:'Plainte', priority:'Haute', status:'Ouvert', author:'C. M.', assigned:'', desc:'La commande est en attente depuis 3 semaines sans mise à jour.' },
+    { titre:'Suggestion amélioration interface', type:'Suggestion', priority:'Basse', status:'Fermé', author:'L. P.', assigned:'A. L.', desc:'Mode sombre dans l\'application mobile.' },
+    { titre:'Information sur nouveaux tarifs', type:'Information', priority:'Basse', status:'Résolu', author:'I. R.', assigned:'J. M.', desc:'Confirmation des nouveaux tarifs 2026.' },
+    { titre:'Accès compte bloqué', type:'Plainte', priority:'Haute', status:'En cours', author:'M. T.', assigned:'S. B.', desc:'Impossible de se connecter depuis 48h, message d\'erreur 403.' },
+  ];
+  seeds.forEach(s => {
+    const d = new Date();
+    d.setDate(d.getDate() - Math.floor(Math.random()*30));
+    entries.push({ id:`RQ-${++idCounter}`, spId: null, ...s, date: d.toISOString() });
+  });
+  saveLocal();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDU / FILTRES / AFFICHAGE
+// ═══════════════════════════════════════════════════════════════════
+
+function setFilter(key, val) {
+  filters[key] = val;
+  // Pour le filtre assigné, le panel est généré dynamiquement — on gère l'état actif manuellement
+  if (key === 'assigned') {
+    document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+  } else {
+    document.querySelectorAll(`#filter-${key} .filter-btn`).forEach(b => {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+  }
+  render();
+}
+
+function getFiltered() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  return entries.filter(e => {
+    if (filters.status   !== 'all' && e.status   !== filters.status)   return false;
+    if (filters.type     !== 'all' && e.type     !== filters.type)     return false;
+    if (filters.priority !== 'all' && e.priority !== filters.priority) return false;
+    if (filters.assigned !== 'all') {
+      if (filters.assigned === '__none__' && e.assigned && e.assigned.trim()) return false;
+      if (filters.assigned !== '__none__' && e.assigned !== filters.assigned) return false;
+    }
+    if (q && !e.titre.toLowerCase().includes(q) && !e.author?.toLowerCase().includes(q) && !e.id.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function getSorted(arr) {
+  const s = document.getElementById('sort-select').value;
+  return [...arr].sort((a,b) => {
+    if (s==='date-desc') return new Date(b.date)-new Date(a.date);
+    if (s==='date-asc')  return new Date(a.date)-new Date(b.date);
+    if (s==='priority') { const p={Haute:0,Moyenne:1,Basse:2}; return p[a.priority]-p[b.priority]; }
+    if (s==='status') return a.status.localeCompare(b.status);
+    return 0;
+  });
+}
+
+function statusBadge(s) {
+  const m = {'Ouvert':'open','En cours':'progress','Résolu':'resolved','Fermé':'closed'};
+  return `<span class="badge badge-${m[s]||'open'}">${s}</span>`;
+}
+function typeBadge(t) {
+  const m = {'Plainte':'plainte','Requête':'requete','Information':'info','Suggestion':'suggestion'};
+  return `<span class="badge badge-${m[t]||'info'}">${t}</span>`;
+}
+function priorityHTML(p) {
+  const c = {Haute:'p-haute',Moyenne:'p-moyenne',Basse:'p-basse'};
+  return `<span class="priority-dot ${c[p]||'p-moyenne'}"></span>${p}`;
+}
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+
+function render() {
+  const filtered = getSorted(getFiltered());
+  document.getElementById('stat-total').textContent    = entries.length;
+  document.getElementById('stat-open').textContent     = entries.filter(e=>e.status==='Ouvert').length;
+  document.getElementById('stat-progress').textContent = entries.filter(e=>e.status==='En cours').length;
+  document.getElementById('stat-resolved').textContent = entries.filter(e=>e.status==='Résolu').length;
+  document.getElementById('fc-all').textContent      = entries.length;
+  document.getElementById('fc-open').textContent     = entries.filter(e=>e.status==='Ouvert').length;
+  document.getElementById('fc-prog').textContent     = entries.filter(e=>e.status==='En cours').length;
+  document.getElementById('fc-resolved').textContent = entries.filter(e=>e.status==='Résolu').length;
+  document.getElementById('fc-closed').textContent   = entries.filter(e=>e.status==='Fermé').length;
+
+  // Panneau "Par personne assignée" — construit dynamiquement depuis les données
+  const assignedMap = {};
+  entries.forEach(e => {
+    const a = (e.assigned || '').trim();
+    if (a) assignedMap[a] = (assignedMap[a] || 0) + 1;
+  });
+  const noneCount = entries.filter(e => !(e.assigned || '').trim()).length;
+  document.getElementById('fc-assigned-all').textContent  = entries.length;
+  document.getElementById('fc-assigned-none').textContent = noneCount;
+  const dynPanel = document.getElementById('filter-assigned-dynamic');
+  dynPanel.innerHTML = Object.entries(assignedMap)
+    .sort((a,b) => b[1]-a[1])
+    .map(([name, count]) => {
+      const isActive = filters.assigned === name;
+      const initials = name.split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
+      return `<button class="filter-btn${isActive?' active':''}" onclick="setFilter('assigned','${name.replace(/'/g,"\\\'")}')" data-val="${name.replace(/"/g,'&quot;')}">
+        <span style="display:flex;align-items:center;gap:7px;">
+          <span style="width:20px;height:20px;border-radius:50%;background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.3);font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);">${initials}</span>
+          ${name}
+        </span>
+        <span class="filter-count">${count}</span>
+      </button>`;
+    }).join('');
+  // Réappliquer l'état actif sur les boutons statiques
+  document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === filters.assigned);
+  });
+
+  const body = document.getElementById('table-body');
+  if (filtered.length === 0) {
+    body.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Aucune entrée trouvée</h3><p>Essayez d'ajuster vos filtres.</p></div>`;
+    return;
+  }
+  body.innerHTML = filtered.map((e,i) => `
+    <div class="row" style="animation-delay:${i*0.03}s" onclick="openDetail('${e.id}')">
+      <div class="row-id">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}</div>
+      <div class="row-title">${e.titre}<small>${e.author||'—'}${e.assigned?' → '+e.assigned:''}</small></div>
+      <div>${typeBadge(e.type)}</div>
+      <div>${statusBadge(e.status)}</div>
+      <div style="font-size:12px;">${priorityHTML(e.priority)}</div>
+      <div class="row-date">${formatDate(e.date)}</div>
+      <div class="row-action" onclick="event.stopPropagation()">
+        <button class="icon-btn" title="Modifier" onclick="openModal('${e.id}')">✎</button>
+        <button class="icon-btn danger" title="Supprimer" onclick="deleteEntry('${e.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MODALS ENTRÉE
+// ═══════════════════════════════════════════════════════════════════
+
+function openModal(id=null) {
+  document.getElementById('edit-id').value    = id || '';
+  document.getElementById('edit-sp-id').value = '';
+  if (id) {
+    const e = entries.find(x=>x.id===id);
+    document.getElementById('modal-title').textContent = 'Modifier l\'entrée';
+    document.getElementById('f-titre').value    = e.titre;
+    document.getElementById('f-desc').value     = e.desc || '';
+    document.getElementById('f-type').value     = e.type;
+    document.getElementById('f-priority').value = e.priority;
+    document.getElementById('f-status').value   = e.status;
+    document.getElementById('f-author').value   = e.author || '';
+    document.getElementById('f-assigned').value = e.assigned || '';
+    document.getElementById('f-dept').value     = e.dept || '';
+    document.getElementById('f-actions').value  = e.actions || '';
+    document.getElementById('f-action-date').value    = e.actionDate    ? e.actionDate.split('T')[0]    : '';
+    document.getElementById('f-saisie-date').value    = e.saisieDate    ? e.saisieDate.split('T')[0]    : '';
+    document.getElementById('f-echeance-date').value  = e.echeanceDate  ? e.echeanceDate.split('T')[0]  : '';
+    document.getElementById('f-fermeture-date').value = e.fermetureDate ? e.fermetureDate.split('T')[0] : '';
+    document.getElementById('f-res-prevu').value = e.resPrevu !== '' && e.resPrevu != null ? e.resPrevu : '';
+    document.getElementById('f-res-reel').value  = e.resReel  !== '' && e.resReel  != null ? e.resReel  : '';
+    document.getElementById('echeance-auto-badge').textContent = '';
+    document.getElementById('res-reel-auto-badge').textContent = '';
+    document.getElementById('edit-sp-id').value = e.spId || '';
+  } else {
+    document.getElementById('modal-title').textContent = 'Nouvelle entrée';
+    ['f-titre','f-desc','f-assigned','f-actions'].forEach(fid=>document.getElementById(fid).value='');
+    document.getElementById('f-dept').value          = '';
+    document.getElementById('f-action-date').value   = '';
+    document.getElementById('f-echeance-date').value = '';
+    document.getElementById('f-fermeture-date').value= '';
+    document.getElementById('f-res-prevu').value     = '';
+    document.getElementById('f-res-reel').value      = '';
+    document.getElementById('f-saisie-date').value   = new Date().toISOString().split('T')[0];
+    document.getElementById('echeance-auto-badge').textContent = '';
+    document.getElementById('res-reel-auto-badge').textContent = '';
+    document.getElementById('f-author').value   = currentUser?.name || '';
+    document.getElementById('f-type').value     = 'Plainte';
+    document.getElementById('f-priority').value = 'Moyenne';
+    document.getElementById('f-status').value   = 'Ouvert';
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ── CALCULS AUTOMATIQUES ────────────────────────────────────────────
+
+// Calcule la date d'échéance = date de saisie + délai prévu en jours
+function calcEcheance() {
+  const saisie = document.getElementById('f-saisie-date').value;
+  const delai  = parseInt(document.getElementById('f-res-prevu').value);
+  const badge  = document.getElementById('echeance-auto-badge');
+  if (saisie && !isNaN(delai) && delai > 0) {
+    const d = new Date(saisie + 'T12:00:00');
+    d.setDate(d.getDate() + delai);
+    const iso = d.toISOString().split('T')[0];
+    document.getElementById('f-echeance-date').value = iso;
+    badge.textContent = '✓ calculée automatiquement';
+    badge.style.color = 'var(--accent2)';
+  } else {
+    badge.textContent = '';
+  }
+}
+
+// Calcule le temps de résolution réel = date de fermeture - date de saisie en jours
+function calcResReel() {
+  const fermeture = document.getElementById('f-fermeture-date').value;
+  const saisie    = document.getElementById('f-saisie-date').value;
+  const badge     = document.getElementById('res-reel-auto-badge');
+  if (fermeture) {
+    // Basculer automatiquement le statut à "Fermé"
+    document.getElementById('f-status').value = 'Fermé';
+    if (saisie) {
+      const dSaisie    = new Date(saisie    + 'T12:00:00');
+      const dFermeture = new Date(fermeture + 'T12:00:00');
+      const diffJours  = Math.round((dFermeture - dSaisie) / (1000 * 60 * 60 * 24));
+      if (diffJours >= 0) {
+        document.getElementById('f-res-reel').value = diffJours;
+        badge.textContent = `✓ ${diffJours} jour(s) calculé(s)`;
+        badge.style.color = 'var(--success)';
+        // Comparer avec le délai prévu
+        const prevu = parseInt(document.getElementById('f-res-prevu').value);
+        if (!isNaN(prevu) && diffJours > prevu) {
+          badge.textContent += ` ⚠ +${diffJours - prevu}j vs prévu`;
+          badge.style.color = 'var(--danger)';
+        }
+      }
+    } else {
+      badge.textContent = '(saisissez la date de saisie pour calculer)';
+      badge.style.color = 'var(--muted)';
+    }
+  } else {
+    badge.textContent = '';
+    // Remettre le statut si la date de fermeture est effacée
+    document.getElementById('f-status').value = 'En cours';
+  }
+}
+
+function openDetail(id) {
+  detailId = id;
+  const e = entries.find(x=>x.id===id);
+  document.getElementById('d-title').textContent = e.titre;
+  document.getElementById('d-id').innerHTML = `${e.id} ${e.spId?'<span class="sync-badge sp">SP#'+e.spId+'</span>':'<span class="sync-badge local">Local</span>'}`;
+  document.getElementById('d-type').innerHTML     = typeBadge(e.type);
+  document.getElementById('d-status').innerHTML   = statusBadge(e.status);
+  document.getElementById('d-priority').innerHTML = priorityHTML(e.priority);
+  document.getElementById('d-author').textContent   = e.author || '—';
+  document.getElementById('d-assigned').textContent = e.assigned || '—';
+  document.getElementById('d-dept').textContent     = e.dept || '—';
+  document.getElementById('d-date').textContent = new Date(e.date).toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'});
+  // Date de saisie
+  const sdEl = document.getElementById('d-saisie-date');
+  if (e.saisieDate) {
+    const sd = new Date(e.saisieDate + 'T12:00:00');
+    sdEl.textContent = isNaN(sd) ? e.saisieDate : sd.toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'});
+  } else { sdEl.textContent = '—'; }
+  // Dates & délais
+  const fmtD = iso => { if(!iso) return '—'; const d=new Date(iso+'T12:00:00'); return isNaN(d)?iso:d.toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'}); };
+  document.getElementById('d-echeance-date').textContent  = fmtD(e.echeanceDate);
+  document.getElementById('d-fermeture-date').textContent = fmtD(e.fermetureDate);
+  document.getElementById('d-res-prevu').textContent = e.resPrevu !== '' && e.resPrevu != null ? `${e.resPrevu} jour(s)` : '—';
+  document.getElementById('d-res-reel').textContent  = e.resReel  !== '' && e.resReel  != null ? `${e.resReel} jour(s)`  : '—';
+  // Indicateur dépassement d'échéance
+  const echeEl = document.getElementById('d-echeance-date');
+  if (e.echeanceDate && e.status !== 'Fermé' && e.status !== 'Résolu') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ech   = new Date(e.echeanceDate + 'T12:00:00');
+    if (ech < today) echeEl.style.color = 'var(--danger)';
+    else echeEl.style.color = 'var(--accent2)';
+  } else { echeEl.style.color = 'var(--success)'; }
+  document.getElementById('d-desc').textContent = e.desc || 'Aucune description fournie.';
+  // Actions réalisées
+  const hasActions = e.actions && e.actions.trim();
+  const actSection = document.getElementById('d-actions-section');
+  actSection.style.display = hasActions ? '' : 'none';
+  document.getElementById('d-actions').textContent = e.actions || '';
+  const adWrap = document.getElementById('d-action-date-wrap');
+  if (e.actionDate) {
+    const d = new Date(e.actionDate + 'T12:00:00');
+    document.getElementById('d-action-date').textContent = isNaN(d) ? e.actionDate : d.toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'});
+    adWrap.style.display = 'flex';
+  } else {
+    adWrap.style.display = 'none';
+  }
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+function editFromDetail() { closeDetail(); openModal(detailId); }
+function deleteFromDetail() { closeDetail(); deleteEntry(detailId); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  RAPPORT
+// ═══════════════════════════════════════════════════════════════════
+
+function openRapportModal() {
+  const now = new Date();
+  document.getElementById('rpt-date-from').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  document.getElementById('rpt-date-to').value   = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0];
+  updateRapportPreview();
+  document.getElementById('rapport-overlay').classList.add('open');
+}
+function closeRapportModal() { document.getElementById('rapport-overlay').classList.remove('open'); }
+function toggleCheck(cb) { cb.closest('.checkbox-label').classList.toggle('checked', cb.checked); }
+
+function getRapportEntries() {
+  const from = new Date(document.getElementById('rpt-date-from').value);
+  const to   = new Date(document.getElementById('rpt-date-to').value); to.setHours(23,59,59);
+  const types   = [...document.querySelectorAll('#rpt-types input:checked')].map(c=>c.value);
+  const statuts = [...document.querySelectorAll('#rpt-statuts input:checked')].map(c=>c.value);
+  return entries.filter(e => { const d=new Date(e.date); return d>=from && d<=to && types.includes(e.type) && statuts.includes(e.status); });
+}
+
+function updateRapportPreview() {
+  const from=document.getElementById('rpt-date-from').value, to=document.getElementById('rpt-date-to').value;
+  const btn=document.getElementById('rpt-btn-gen');
+  if (!from||!to){btn.disabled=true;return;}
+  const filtered=getRapportEntries(); btn.disabled=filtered.length===0;
+  const byType={},byStatus={};
+  filtered.forEach(e=>{byType[e.type]=(byType[e.type]||0)+1;byStatus[e.status]=(byStatus[e.status]||0)+1;});
+  document.getElementById('rapport-preview').innerHTML = filtered.length===0
+    ? '<div style="color:var(--muted);padding:10px;">Aucune entrée pour cette période.</div>'
+    : `<div style="color:var(--text);font-size:12px;margin-bottom:8px;">${filtered.length} entrée(s) sélectionnée(s)</div>
+       <div class="rapport-stat-row">
+         ${[{n:filtered.length,l:'Total',c:'#c4a8f0'},{n:byStatus['Ouvert']||0,l:'Ouvert',c:'#e8c547'},{n:byStatus['En cours']||0,l:'En cours',c:'#5b9bd5'},{n:byStatus['Résolu']||0,l:'Résolu',c:'#5cb87a'}]
+           .map(s=>`<div class="rapport-stat"><div class="n" style="color:${s.c}">${s.n}</div><div class="l">${s.l}</div></div>`).join('')}
+       </div>`;
+}
+
+function genererRapport() {
+  const from=document.getElementById('rpt-date-from').value, to=document.getElementById('rpt-date-to').value;
+  const filtered=getRapportEntries().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const fmtDate=iso=>new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'});
+  const fmtShort=iso=>new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const byType={},byStatus={},byPrio={};
+  filtered.forEach(e=>{byType[e.type]=(byType[e.type]||0)+1;byStatus[e.status]=(byStatus[e.status]||0)+1;byPrio[e.priority]=(byPrio[e.priority]||0)+1;});
+  const sC={'Ouvert':'#b45309','En cours':'#1d4ed8','Résolu':'#166534','Fermé':'#4b5563'};
+  const sB={'Ouvert':'#fef3c7','En cours':'#dbeafe','Résolu':'#dcfce7','Fermé':'#f3f4f6'};
+  const tC={'Plainte':'#991b1b','Requête':'#92400e','Information':'#1e40af','Suggestion':'#065f46'};
+  const tB={'Plainte':'#fee2e2','Requête':'#fef3c7','Information':'#dbeafe','Suggestion':'#d1fae5'};
+  const pB={'Haute':'#fee2e2','Moyenne':'#fef9c3','Basse':'#dcfce7'};
+  const pC={'Haute':'#991b1b','Moyenne':'#854d0e','Basse':'#166534'};
+  const badge=(t,bg,c)=>`<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${bg};color:${c};">${t}</span>`;
+  const fmtActionDate=iso=>{if(!iso)return'—';const d=new Date(iso+'T12:00:00');return isNaN(d)?iso:d.toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'numeric'});};
+  const rows=filtered.map((e,i)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};"><td style="padding:8px 10px;font-size:12px;color:#6b7280;font-family:monospace;">${e.id}</td><td style="padding:8px 10px;font-size:12px;color:#111827;">${e.titre}</td><td style="padding:8px 10px;">${badge(e.type,tB[e.type]||'#f3f4f6',tC[e.type]||'#374151')}</td><td style="padding:8px 10px;">${badge(e.status,sB[e.status]||'#f3f4f6',sC[e.status]||'#374151')}</td><td style="padding:8px 10px;">${badge(e.priority,pB[e.priority]||'#f3f4f6',pC[e.priority]||'#374151')}</td><td style="padding:8px 10px;font-size:11px;color:#374151;">${e.dept||'—'}</td><td style="padding:8px 10px;font-size:11px;color:#6b7280;white-space:nowrap;">${fmtActionDate(e.saisieDate)}</td><td style="padding:8px 10px;font-size:11px;color:#b45309;white-space:nowrap;">${fmtActionDate(e.echeanceDate)}</td><td style="padding:8px 10px;font-size:11px;color:#166534;white-space:nowrap;">${fmtActionDate(e.fermetureDate)}</td><td style="padding:8px 10px;font-size:11px;color:#374151;text-align:center;">${e.resPrevu!==''&&e.resPrevu!=null?e.resPrevu:'—'}</td><td style="padding:8px 10px;font-size:11px;color:#374151;text-align:center;">${e.resReel!==''&&e.resReel!=null?e.resReel:'—'}</td><td style="padding:8px 10px;font-size:11px;color:#6b7280;">${e.desc?e.desc.slice(0,50)+(e.desc.length>50?'…':''):'—'}</td><td style="padding:8px 10px;font-size:11px;color:#1d4ed8;">${e.actions?e.actions.slice(0,60)+(e.actions.length>60?'…':''):'—'}</td></tr>`).join('');
+  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport — Stukely-Sud — ${from} au ${to}</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#111827;background:#fff;padding:40px;}@media print{body{padding:20px;}.no-print{display:none!important;}tr{page-break-inside:avoid;}}h1{font-size:22px;color:#1e1b4b;margin-bottom:4px;}h2{font-size:15px;color:#4338ca;margin:28px 0 10px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;}.header-block{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:3px solid #4338ca;}.header-meta{font-size:12px;color:#6b7280;line-height:1.8;text-align:right;}.confidential{display:inline-block;padding:3px 10px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.05em;margin-top:4px;}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}.sum-card{border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;text-align:center;}.sum-card .n{font-size:28px;font-weight:800;}.sum-card .l{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:3px;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#1e1b4b;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;}.breakdown-table{width:auto;min-width:280px;font-size:13px;}.breakdown-table td{border-bottom:1px solid #f3f4f6;}.main-table tr:hover{background:#f0f9ff!important;}.actions-cell{color:#1d4ed8;font-style:italic;}.print-btn{position:fixed;bottom:24px;right:24px;padding:12px 24px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(67,56,202,.4);}.note-anonyme{display:inline-block;padding:4px 10px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:4px;font-size:11px;margin-top:8px;}</style></head><body><div class="header-block"><div><div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Municipalité de</div><h1>Stukely-Sud</h1><div style="font-size:16px;color:#4338ca;margin-top:2px;">Rapport — Plaintes &amp; Requêtes</div><div class="note-anonyme">🔒 Rapport anonymisé — noms retirés</div></div><div class="header-meta"><div><strong>Période :</strong> ${fmtDate(from+'T12:00:00')} au ${fmtDate(to+'T12:00:00')}</div><div><strong>Produit le :</strong> ${fmtDate(new Date().toISOString())}</div><div><strong>Total entrées :</strong> ${filtered.length}</div><div class="confidential">CONFIDENTIEL</div></div></div><h2>Résumé statistique</h2><div class="summary-grid"><div class="sum-card" style="border-color:#c7d2fe;"><div class="n" style="color:#4338ca;">${filtered.length}</div><div class="l">Total</div></div><div class="sum-card" style="border-color:#fde68a;"><div class="n" style="color:#b45309;">${byStatus['Ouvert']||0}</div><div class="l">Ouvert</div></div><div class="sum-card" style="border-color:#bfdbfe;"><div class="n" style="color:#1d4ed8;">${byStatus['En cours']||0}</div><div class="l">En cours</div></div><div class="sum-card" style="border-color:#bbf7d0;"><div class="n" style="color:#166534;">${byStatus['Résolu']||0}</div><div class="l">Résolu</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;"><div><h2 style="margin-top:0;">Par type</h2><table class="breakdown-table"><thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead><tbody>${Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<tr><td style="padding:7px 12px;">${badge(t,tB[t]||'#f3f4f6',tC[t]||'#374151')}</td><td style="padding:7px 12px;font-weight:700;">${n}</td><td style="padding:7px 12px;color:#6b7280;">${Math.round(n/filtered.length*100)} %</td></tr>`).join('')}</tbody></table></div><div><h2 style="margin-top:0;">Par priorité</h2><table class="breakdown-table"><thead><tr><th>Priorité</th><th>Nb</th><th>%</th></tr></thead><tbody>${['Haute','Moyenne','Basse'].map(p=>byPrio[p]?`<tr><td style="padding:7px 12px;">${badge(p,pB[p],pC[p])}</td><td style="padding:7px 12px;font-weight:700;">${byPrio[p]}</td><td style="padding:7px 12px;color:#6b7280;">${Math.round(byPrio[p]/filtered.length*100)} %</td></tr>`:'').join('')}</tbody></table></div></div><h2>Détail des entrées</h2><table class="main-table"><thead><tr><th>ID</th><th>Titre</th><th>Type</th><th>Statut</th><th>Priorité</th><th>Département</th><th>Date saisie</th><th>Échéance</th><th>Fermeture</th><th>Prévu (j)</th><th>Réel (j)</th><th>Description</th><th>⚡ Actions</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">Rapport généré automatiquement — Municipalité de Stukely-Sud &nbsp;·&nbsp; Période : ${fmtDate(from+'T12:00:00')} – ${fmtDate(to+'T12:00:00')} &nbsp;·&nbsp; Données anonymisées.</div><button class="print-btn no-print" onclick="window.print()">🖨 Imprimer / PDF</button></body></html>`;
+  const win=window.open('','_blank'); win.document.write(html); win.document.close();
+  closeRapportModal(); toast(`Rapport généré — ${filtered.length} entrée(s) ✓`,'success');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IMPORT MODELLIUM
+// ═══════════════════════════════════════════════════════════════════
+
+let importStep=1, importRows=[], importHeaders=[], importMapped=[];
+const APP_FIELDS=[
+  {key:'titre',label:'Titre',required:true},{key:'desc',label:'Description',required:false},
+  {key:'type',label:'Type',required:false},{key:'status',label:'Statut',required:false},
+  {key:'priority',label:'Priorité',required:false},{key:'author',label:'Auteur',required:false},
+  {key:'assigned',label:'Assigné à',required:false},{key:'date',label:'Date',required:false},
+];
+const AUTO_MAP={
+  titre:['titre','title','sujet','objet','subject','intitulé','libellé','demande','nom'],
+  desc:['description','detail','détail','commentaire','note','contenu','message','corps'],
+  type:['type','catégorie','categorie','category','nature'],
+  status:['statut','status','état','etat','state'],
+  priority:['priorité','priorite','priority','urgence','niveau'],
+  author:['auteur','author','citoyen','demandeur','nom citoyen','prénom nom','contact','client','usager'],
+  assigned:['assigné','assigne','assigned','responsable','agent','technicien'],
+  date:['date','date création','date_creation','created_at','créé le','soumis le','date soumission'],
+};
+const TYPE_MAP={'plainte':'Plainte','complaint':'Plainte','réclamation':'Plainte','reclamation':'Plainte','requête':'Requête','requete':'Requête','request':'Requête','demande':'Requête','information':'Information','info':'Information','renseignement':'Information','suggestion':'Suggestion','amélioration':'Suggestion','amelioration':'Suggestion'};
+const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé'};
+const PRIO_MAP={'haute':'Haute','high':'Haute','urgent':'Haute','urgente':'Haute','élevée':'Haute','elevee':'Haute','moyenne':'Moyenne','medium':'Moyenne','normale':'Moyenne','normal':'Moyenne','modérée':'Moyenne','basse':'Basse','low':'Basse','faible':'Basse'};
+
+function openImportModal(){importStep=1;importRows=[];importHeaders=[];importMapped=[];document.getElementById('import-file-input').value='';document.getElementById('import-btn-next').disabled=true;document.getElementById('import-btn-next').textContent='Continuer →';document.getElementById('import-btn-back').style.display='none';setImportStep(1);document.getElementById('import-overlay').classList.add('open');}
+function closeImportModal(){document.getElementById('import-overlay').classList.remove('open');}
+function setImportStep(n){importStep=n;[1,2,3].forEach(i=>{document.getElementById(`import-step-${i}`).classList.toggle('active',i===n);const dot=document.getElementById(`si-${i}`);dot.classList.toggle('active',i===n);dot.classList.toggle('done',i<n);});const labels=['1 — Chargement du fichier','2 — Correspondance des colonnes','3 — Aperçu & confirmation'];document.getElementById('step-label').textContent=labels[n-1];document.getElementById('import-btn-back').style.display=n>1?'':'none';document.getElementById('import-btn-next').textContent=n===3?'⬆ Importer':'Continuer →';}
+function importNext(){if(importStep===1){buildMappingUI();setImportStep(2);}else if(importStep===2){buildPreview();setImportStep(3);}else if(importStep===3){doImport();}}
+function importPrev(){if(importStep>1)setImportStep(importStep-1);}
+function handleFileSelect(e){const file=e.target.files[0];if(!file)return;const ext=file.name.split('.').pop().toLowerCase();if(ext==='csv')readCSV(file);else readExcel(file);}
+function readCSV(file){const reader=new FileReader();reader.onload=ev=>{const text=ev.target.result;const lines=text.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2){toast('Fichier CSV vide ou invalide.','danger');return;}const sep=lines[0].includes(';')?';':',';importHeaders=parseCSVLine(lines[0],sep);importRows=lines.slice(1).map(l=>{const vals=parseCSVLine(l,sep);const obj={};importHeaders.forEach((h,i)=>obj[h]=vals[i]||'');return obj;}).filter(r=>Object.values(r).some(v=>v.trim()));onFileParsed(file.name);};reader.readAsText(file,'UTF-8');}
+function parseCSVLine(line,sep){const result=[];let cur='';let inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){inQ=!inQ;}else if(c===sep&&!inQ){result.push(cur.trim());cur='';}else{cur+=c;}}result.push(cur.trim());return result;}
+function readExcel(file){if(typeof XLSX==='undefined'){toast('Chargement de SheetJS…','info');const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>parseExcel(file);document.head.appendChild(s);}else{parseExcel(file);}}
+function parseExcel(file){const reader=new FileReader();reader.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'binary'});const ws=wb.Sheets[wb.SheetNames[0]];const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(data.length<2){toast('Fichier Excel vide ou invalide.','danger');return;}importHeaders=data[0].map(h=>String(h).trim());importRows=data.slice(1).map(row=>{const obj={};importHeaders.forEach((h,i)=>obj[h]=String(row[i]||'').trim());return obj;}).filter(r=>Object.values(r).some(v=>v));onFileParsed(file.name);}catch(err){toast('Erreur lecture Excel: '+err.message,'danger');}};reader.readAsBinaryString(file);}
+function onFileParsed(filename){document.getElementById('import-btn-next').disabled=false;document.getElementById('dz-icon').textContent='✅';document.getElementById('dz-title').textContent=filename;document.getElementById('dz-hint').textContent=`${importRows.length} ligne(s) détectée(s) — ${importHeaders.length} colonne(s)`;}
+function autoDetect(fieldKey){const keywords=AUTO_MAP[fieldKey]||[];return importHeaders.find(h=>keywords.some(k=>h.toLowerCase().includes(k)))||'';}
+function buildMappingUI(){const chips=document.getElementById('col-chips');chips.innerHTML=importHeaders.map(h=>{const matched=Object.values(AUTO_MAP).some(kws=>kws.some(k=>h.toLowerCase().includes(k)));return`<span class="col-chip ${matched?'matched':''}">${h}</span>`;}).join('');const tbody=document.getElementById('mapping-rows');const preview0=importRows[0]||{};tbody.innerHTML=APP_FIELDS.map(f=>{const detected=autoDetect(f.key);const preview=detected?(preview0[detected]||'').slice(0,30):'—';const opts=['',...importHeaders].map(h=>`<option value="${h}" ${h===detected?'selected':''}>${h||'— ignorer —'}</option>`).join('');return`<tr><td style="color:var(--text);">${f.label}${f.required?' <span style="color:var(--danger)">*</span>':''}</td><td><select class="full mapping-sel" data-field="${f.key}" onchange="updatePreviewCol(this)">${opts}</select></td><td><span class="preview-badge" id="prev-${f.key}">${preview}</span></td></tr>`;}).join('');}
+function updatePreviewCol(sel){const field=sel.dataset.field;const col=sel.value;const preview=col?((importRows[0]||{})[col]||'').slice(0,30):'—';document.getElementById(`prev-${field}`).textContent=preview||'—';}
+function getMapping(){const m={};document.querySelectorAll('.mapping-sel').forEach(s=>{m[s.dataset.field]=s.value;});return m;}
+function normalizeVal(field,raw){if(!raw)return'';const v=raw.trim(),vl=v.toLowerCase();if(field==='type')return TYPE_MAP[vl]||'Requête';if(field==='status')return STATUS_MAP[vl]||'Ouvert';if(field==='priority')return PRIO_MAP[vl]||'Moyenne';if(field==='date'){const d=new Date(v);return isNaN(d)?new Date().toISOString():d.toISOString();}return v;}
+function buildPreview(){const mapping=getMapping();if(!mapping.titre){toast('Veuillez associer le champ "Titre".','danger');return;}importMapped=importRows.map(row=>{const e={};APP_FIELDS.forEach(f=>{const col=mapping[f.key];e[f.key]=col?normalizeVal(f.key,row[col]):'';});if(!e.status)e.status='Ouvert';if(!e.priority)e.priority='Moyenne';if(!e.type)e.type='Requête';if(!e.date)e.date=new Date().toISOString();return e;}).filter(e=>e.titre);document.getElementById('preview-count').textContent=importMapped.length;const tbody=document.getElementById('preview-rows');tbody.innerHTML=importMapped.slice(0,50).map(e=>`<tr><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.titre}</td><td>${typeBadge(e.type)}</td><td>${statusBadge(e.status)}</td><td style="font-size:11px;">${priorityHTML(e.priority)}</td><td style="color:var(--muted);font-size:11px;">${e.author||'—'}</td></tr>`).join('');if(importMapped.length>50){tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px;">… et ${importMapped.length-50} autres</td></tr>`;}}
+
+async function doImport() {
+  const skipDupes=document.getElementById('skip-dupes').checked;
+  const existingTitles=new Set(entries.map(e=>e.titre.toLowerCase()));
+  let added=0,skipped=0;
+  const toImport=[];
+  importMapped.forEach(e=>{
+    if(skipDupes&&existingTitles.has(e.titre.toLowerCase())){skipped++;return;}
+    toImport.push(e);
+    existingTitles.add(e.titre.toLowerCase());
+  });
+  closeImportModal();
+  if(spOnline&&toImport.length>0){
+    showLoading(`Import dans SharePoint… (0/${toImport.length})`);
+    for(let i=0;i<toImport.length;i++){
+      try{
+        document.getElementById('loading-msg').textContent=`Import dans SharePoint… (${i+1}/${toImport.length})`;
+        const spId=await createInSP(toImport[i]);
+        entries.unshift({id:`RQ-${spId}`,spId,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
+        added++;
+      }catch(e){
+        entries.unshift({id:`RQ-${++idCounter}`,spId:null,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
+        added++;
+      }
+    }
+    hideLoading();
+  } else {
+    toImport.forEach(e=>{entries.unshift({id:`RQ-${++idCounter}`,spId:null,date:e.date||new Date().toISOString(),...e});added++;});
+  }
+  saveLocal(); render();
+  toast(`${added} entrée(s) importée(s)${skipped?' ('+skipped+' doublon(s) ignoré(s))':''}${spOnline?' vers SharePoint':' en local'} ✓`,'success');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  OVERLAY CLOSE + INIT
+// ═══════════════════════════════════════════════════════════════════
+
+['modal-overlay','detail-overlay','rapport-overlay','import-overlay','sp-config-overlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+});
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const dz=document.getElementById('dropzone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');const file=e.dataTransfer.files[0];if(file){document.getElementById('import-file-input').files=e.dataTransfer.files;const ext=file.name.split('.').pop().toLowerCase();if(ext==='csv')readCSV(file);else readExcel(file);}});
+});
+
+// Lancement
+initApp();
+</script>
+</body>
+</html>
