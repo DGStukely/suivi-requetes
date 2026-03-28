@@ -943,6 +943,8 @@ async function initApp() {
   syncFilterButtons();
   render();
 }
+
+function setSpStatus(state, text) {
   const el = document.getElementById('sp-status-badge');
   el.className = `sp-status ${state}`;
   document.getElementById('sp-status-text').textContent = text;
