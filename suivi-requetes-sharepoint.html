@@ -42,14 +42,15 @@
   .sp-current-user { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 
   /* LAYOUT */
-  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; min-height: calc(100vh - 64px); }
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; min-height: calc(100vh - 64px); }
 
   /* SIDEBAR */
-  .sidebar { display: flex; flex-direction: column; gap: 1rem; }
-  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; transition: border-color 0.2s; }
+  .sidebar { display: flex; flex-direction: column; gap: 0.6rem; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .filters-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px; transition: border-color 0.2s; }
   .stat-card:hover { border-color: var(--accent); }
-  .stat-num { font-family: var(--font-display); font-size: 2rem; line-height: 1; margin-bottom: 4px; }
+  .stat-num { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; margin-bottom: 2px; }
   .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
   .stat-card.total .stat-num { color: var(--text); }
   .stat-card.open .stat-num { color: var(--accent); }
@@ -268,44 +269,46 @@
       </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-header">Par statut</div>
-      <div class="panel-body" id="filter-status">
-        <button class="filter-btn active" onclick="setFilter('status','all')" data-val="all">Tous <span class="filter-count" id="fc-all">0</span></button>
-        <button class="filter-btn" onclick="setFilter('status','Ouvert')" data-val="Ouvert">Ouvert <span class="filter-count" id="fc-open">0</span></button>
-        <button class="filter-btn" onclick="setFilter('status','En cours')" data-val="En cours">En cours <span class="filter-count" id="fc-prog">0</span></button>
-        <button class="filter-btn" onclick="setFilter('status','Résolu')" data-val="Résolu">Résolu <span class="filter-count" id="fc-resolved">0</span></button>
-        <button class="filter-btn" onclick="setFilter('status','Fermé')" data-val="Fermé">Fermé <span class="filter-count" id="fc-closed">0</span></button>
+    <div class="filters-grid">
+      <div class="panel">
+        <div class="panel-header">Par statut</div>
+        <div class="panel-body" id="filter-status">
+          <button class="filter-btn active" onclick="setFilter('status','all')" data-val="all">Tous <span class="filter-count" id="fc-all">0</span></button>
+          <button class="filter-btn" onclick="setFilter('status','Ouvert')" data-val="Ouvert">Ouvert <span class="filter-count" id="fc-open">0</span></button>
+          <button class="filter-btn" onclick="setFilter('status','En cours')" data-val="En cours">En cours <span class="filter-count" id="fc-prog">0</span></button>
+          <button class="filter-btn" onclick="setFilter('status','Résolu')" data-val="Résolu">Résolu <span class="filter-count" id="fc-resolved">0</span></button>
+          <button class="filter-btn" onclick="setFilter('status','Fermé')" data-val="Fermé">Fermé <span class="filter-count" id="fc-closed">0</span></button>
+        </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <div class="panel-header">Par type</div>
-      <div class="panel-body" id="filter-type">
-        <button class="filter-btn active" onclick="setFilter('type','all')" data-val="all">Tous</button>
-        <button class="filter-btn" onclick="setFilter('type','Plainte')" data-val="Plainte">Plainte</button>
-        <button class="filter-btn" onclick="setFilter('type','Requête')" data-val="Requête">Requête</button>
-        <button class="filter-btn" onclick="setFilter('type','Information')" data-val="Information">Information</button>
-        <button class="filter-btn" onclick="setFilter('type','Suggestion')" data-val="Suggestion">Suggestion</button>
+      <div class="panel">
+        <div class="panel-header">Par type</div>
+        <div class="panel-body" id="filter-type">
+          <button class="filter-btn active" onclick="setFilter('type','all')" data-val="all">Tous</button>
+          <button class="filter-btn" onclick="setFilter('type','Plainte')" data-val="Plainte">Plainte</button>
+          <button class="filter-btn" onclick="setFilter('type','Requête')" data-val="Requête">Requête</button>
+          <button class="filter-btn" onclick="setFilter('type','Information')" data-val="Information">Info</button>
+          <button class="filter-btn" onclick="setFilter('type','Suggestion')" data-val="Suggestion">Suggestion</button>
+        </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <div class="panel-header">Par priorité</div>
-      <div class="panel-body" id="filter-priority">
-        <button class="filter-btn active" onclick="setFilter('priority','all')" data-val="all">Toutes</button>
-        <button class="filter-btn" onclick="setFilter('priority','Haute')" data-val="Haute"><span><span class="priority-dot p-haute"></span>Haute</span></button>
-        <button class="filter-btn" onclick="setFilter('priority','Moyenne')" data-val="Moyenne"><span><span class="priority-dot p-moyenne"></span>Moyenne</span></button>
-        <button class="filter-btn" onclick="setFilter('priority','Basse')" data-val="Basse"><span><span class="priority-dot p-basse"></span>Basse</span></button>
+      <div class="panel">
+        <div class="panel-header">Par priorité</div>
+        <div class="panel-body" id="filter-priority">
+          <button class="filter-btn active" onclick="setFilter('priority','all')" data-val="all">Toutes</button>
+          <button class="filter-btn" onclick="setFilter('priority','Haute')" data-val="Haute"><span><span class="priority-dot p-haute"></span>Haute</span></button>
+          <button class="filter-btn" onclick="setFilter('priority','Moyenne')" data-val="Moyenne"><span><span class="priority-dot p-moyenne"></span>Moyenne</span></button>
+          <button class="filter-btn" onclick="setFilter('priority','Basse')" data-val="Basse"><span><span class="priority-dot p-basse"></span>Basse</span></button>
+        </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <div class="panel-header">Par personne assignée</div>
-      <div class="panel-body" id="filter-assigned">
-        <button class="filter-btn active" onclick="setFilter('assigned','all')" data-val="all">Toutes <span class="filter-count" id="fc-assigned-all">0</span></button>
-        <button class="filter-btn" onclick="setFilter('assigned','__none__')" data-val="__none__">Non assigné <span class="filter-count" id="fc-assigned-none">0</span></button>
-        <div id="filter-assigned-dynamic"></div>
+      <div class="panel">
+        <div class="panel-header">Par assigné</div>
+        <div class="panel-body" id="filter-assigned">
+          <button class="filter-btn active" onclick="setFilter('assigned','all')" data-val="all">Tous <span class="filter-count" id="fc-assigned-all">0</span></button>
+          <button class="filter-btn" onclick="setFilter('assigned','__none__')" data-val="__none__">Non assigné <span class="filter-count" id="fc-assigned-none">0</span></button>
+          <div id="filter-assigned-dynamic"></div>
+        </div>
       </div>
     </div>
   </aside>
@@ -693,6 +696,7 @@ let currentUser = null;     // objet utilisateur SP courant
 let entries = [];           // données en mémoire
 let idCounter = parseInt(localStorage.getItem('rq-counter') || '100');
 let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all' };
+let currentPage = 1;
 let detailId = null;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1159,8 +1163,14 @@ function seedDemoData() {
 //  RENDU / FILTRES / AFFICHAGE
 // ═══════════════════════════════════════════════════════════════════
 
+function changePage(dir) {
+  currentPage += dir;
+  render();
+}
+
 function setFilter(key, val) {
   filters[key] = val;
+  currentPage = 1; // Réinitialiser à la page 1 lors d'un changement de filtre
   if (key === 'assigned') {
     document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.val === val);
@@ -1316,7 +1326,13 @@ function render() {
     body.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Aucune entrée trouvée</h3><p>Essayez d'ajuster vos filtres.</p></div>`;
     return;
   }
-  body.innerHTML = filtered.map((e,i) => `
+  const pageSize = 10;
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage - 1) * pageSize;
+  const paginated = filtered.slice(start, start + pageSize);
+
+  body.innerHTML = paginated.map((e,i) => `
     <div class="row" style="animation-delay:${i*0.03}s" onclick="openDetail('${e.id}')">
       <div class="row-id">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}</div>
       <div class="row-title">${e.titre}<small>${e.author||'—'}${e.assigned?' → '+e.assigned:''}</small></div>
@@ -1329,6 +1345,20 @@ function render() {
         <button class="icon-btn danger" title="Supprimer" onclick="deleteEntry('${e.id}')">✕</button>
       </div>
     </div>`).join('');
+
+  // Pagination
+  if (totalPages > 1) {
+    const nav = document.createElement('div');
+    nav.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);';
+    nav.innerHTML = `
+      <span>${filtered.length} entrée(s) — page ${currentPage}/${totalPages}</span>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" onclick="changePage(-1)" ${currentPage===1?'disabled':''} title="Page précédente">◀</button>
+        <span style="padding:4px 8px;background:var(--surface2);border-radius:4px;">${currentPage}</span>
+        <button class="icon-btn" onclick="changePage(1)" ${currentPage===totalPages?'disabled':''} title="Page suivante">▶</button>
+      </div>`;
+    body.appendChild(nav);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
