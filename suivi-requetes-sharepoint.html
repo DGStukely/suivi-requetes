@@ -311,6 +311,12 @@
         </div>
       </div>
     </div>
+
+    <div class="panel">
+      <div class="panel-header">Par catégorie</div>
+      <div class="panel-body" id="filter-categorie-dynamic" style="max-height:140px;overflow-y:auto;"></div>
+    </div>
+
   </aside>
 
   <main class="main">
@@ -318,12 +324,8 @@
       <div class="search-wrap">
         <input type="text" id="search-input" placeholder="Rechercher titre, description, adresse…" oninput="currentPage=1;render()">
       </div>
-      <select id="sort-select" onchange="render()" style="width:auto;padding-left:10px;">
-        <option value="date-desc">Plus récent</option>
-        <option value="date-asc">Plus ancien</option>
-        <option value="priority">Priorité</option>
-        <option value="status">Statut</option>
-      </select>
+      <input type="date" id="filter-date-from" onchange="currentPage=1;render()" title="Date de saisie — du" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
+      <input type="date" id="filter-date-to" onchange="currentPage=1;render()" title="Date de saisie — au" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
       <button class="btn btn-ghost" onclick="resetFilters()" title="Réinitialiser les filtres">✕ Filtres</button>
       <button class="btn btn-ghost" onclick="exportExcel()" title="Exporter en Excel">📥 Excel</button>
       <button class="btn btn-modellium" onclick="openImportModal()">⬆ Importer Modellium</button>
@@ -333,7 +335,14 @@
 
     <div class="table-wrap">
       <div class="table-header" style="grid-template-columns: 80px 1fr 100px 110px 100px 120px 90px 90px;">
-        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Adresse</div><div>Date saisie</div><div>Actions</div>
+        <div onclick="toggleSort('id')" style="cursor:pointer;" title="Trier par ID">ID <span id="sort-id"></span></div>
+        <div onclick="toggleSort('titre')" style="cursor:pointer;" title="Trier par titre">Titre / Auteur <span id="sort-titre"></span></div>
+        <div onclick="toggleSort('type')" style="cursor:pointer;" title="Trier par type">Type <span id="sort-type"></span></div>
+        <div onclick="toggleSort('status')" style="cursor:pointer;" title="Trier par statut">Statut <span id="sort-status"></span></div>
+        <div onclick="toggleSort('priority')" style="cursor:pointer;" title="Trier par priorité">Priorité <span id="sort-priority"></span></div>
+        <div>Adresse</div>
+        <div onclick="toggleSort('date-desc')" style="cursor:pointer;" title="Trier par date">Date saisie <span id="sort-date-desc"></span></div>
+        <div>Actions</div>
       </div>
       <div id="table-body"></div>
     </div>
@@ -689,7 +698,7 @@ let spOnline  = false;      // true = connecté à SharePoint
 let currentUser = null;     // objet utilisateur SP courant
 let entries = [];           // données en mémoire
 let idCounter = parseInt(localStorage.getItem('rq-counter') || '100');
-let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all' };
+let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all', categorie: 'all' };
 let currentPage = 1;
 let detailId = null;
 
@@ -921,20 +930,23 @@ async function initApp() {
     setSpStatus('offline', 'Hors-ligne (mode local)');
     console.warn('SP non accessible:', err.message);
 
-    // Fallback : données locales
     const local = localStorage.getItem('rq-entries');
     entries = local ? JSON.parse(local) : [];
-
-    // Si aucune donnée locale, charger les données de démonstration
     if (entries.length === 0) seedDemoData();
+
+    const errMsg = err.message?.includes('Failed to fetch') ? 'Impossible de joindre SharePoint — vérifiez votre connexion réseau.' :
+                   err.message?.includes('401') ? 'Non autorisé — reconnectez-vous à Microsoft 365.' :
+                   err.message?.includes('403') ? 'Accès refusé — vérifiez vos permissions SharePoint.' :
+                   err.message?.includes('404') ? `Liste "${SP_CONFIG.list}" introuvable dans SharePoint.` :
+                   err.message || 'Erreur inconnue';
 
     document.getElementById('sp-info-panel').innerHTML =
       `<span style="color:var(--danger);">✗ SharePoint inaccessible</span><br>
-       <span style="color:var(--muted);font-size:10px;">${err.message}</span><br><br>
-       <strong>Vérifiez que vous êtes connecté à Microsoft 365</strong> dans votre navigateur (ouvrez portal.office.com ou outlook.office.com).<br><br>
+       <span style="color:var(--danger);font-size:10px;font-weight:600;">${errMsg}</span><br><br>
+       <strong>Solution :</strong> Ouvrez <a href="https://portal.office.com" target="_blank" style="color:var(--accent);">portal.office.com</a> dans un autre onglet et reconnectez-vous à Microsoft 365.<br><br>
        Mode local actif — données sauvegardées localement.`;
     setSyncBadge('local');
-    toast('Mode hors-ligne — données locales utilisées', 'info');
+    toast(`⚠ Hors-ligne — ${errMsg}`, 'danger');
   }
 
   hideLoading();
@@ -1012,10 +1024,21 @@ async function saveEntry() {
     closeModal();
     toast('Entrée mise à jour ✓');
     if (spOnline && spId) {
-      try {
-        await updateInSP(parseInt(spId), data);
-        toast('Synchronisé avec SharePoint ✓');
-      } catch(e) { toast('Sauvegardé localement — sync SP échouée: ' + e.message, 'danger'); }
+      let attempts = 0;
+      const tryUpdate = async () => {
+        try {
+          await updateInSP(parseInt(spId), data);
+          toast('✓ Synchronisé avec SharePoint');
+        } catch(e) {
+          attempts++;
+          if (attempts < 3) {
+            await new Promise(r => setTimeout(r, 1000 * attempts));
+            return tryUpdate();
+          }
+          toast(`⚠ Sauvegardé localement — SP inaccessible (${e.message})`, 'danger');
+        }
+      };
+      await tryUpdate();
     }
   } else {
     // CRÉATION
@@ -1027,31 +1050,52 @@ async function saveEntry() {
     closeModal();
     toast('Entrée créée ✓');
     if (spOnline) {
-      try {
-        const spNewId = await createInSP(data);
-        // Met à jour l'entrée locale avec le vrai ID SP
-        const idx = entries.findIndex(e => e.id === newId);
-        entries[idx].spId = spNewId;
-        entries[idx].id   = `RQ-${spNewId}`;
-        saveLocal();
-        render();
-        toast(`Enregistré dans SharePoint (RQ-${spNewId}) ✓`);
-      } catch(e) { toast('Sauvegardé localement — sync SP échouée: ' + e.message, 'danger'); }
+      let attempts = 0;
+      const tryCreate = async () => {
+        try {
+          const spNewId = await createInSP(data);
+          const idx = entries.findIndex(e => e.id === newId);
+          entries[idx].spId = spNewId;
+          entries[idx].id   = `RQ-${spNewId}`;
+          saveLocal();
+          render();
+          toast(`✓ Enregistré dans SharePoint (RQ-${spNewId})`);
+        } catch(e) {
+          attempts++;
+          if (attempts < 3) {
+            await new Promise(r => setTimeout(r, 1000 * attempts));
+            return tryCreate();
+          }
+          toast(`⚠ Sauvegardé localement — SP inaccessible (${e.message})`, 'danger');
+        }
+      };
+      await tryCreate();
     }
   }
 }
 
 async function deleteEntry(id) {
-  if (!confirm('Supprimer cette entrée ?')) return;
   const entry = entries.find(e => e.id === id);
+  if (!confirm(`Supprimer "${entry?.titre || 'cette entrée'}" ?\n\nCette action est irréversible.`)) return;
   entries = entries.filter(e => e.id !== id);
   saveLocal();
   render();
   toast('Entrée supprimée','danger');
   if (spOnline && entry?.spId) {
-    try {
-      await deleteInSP(entry.spId);
-    } catch(e) { toast('Supprimé localement — sync SP échouée: ' + e.message, 'danger'); }
+    let attempts = 0;
+    const tryDelete = async () => {
+      try {
+        await deleteInSP(entry.spId);
+      } catch(e) {
+        attempts++;
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 1000 * attempts));
+          return tryDelete();
+        }
+        toast('Supprimé localement — sync SP échouée après 3 tentatives', 'danger');
+      }
+    };
+    await tryDelete();
   }
 }
 
@@ -1155,9 +1199,13 @@ function changePage(dir) {
 }
 
 function resetFilters() {
-  filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all' };
+  filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all', categorie: 'all' };
   currentPage = 1;
   document.getElementById('search-input').value = '';
+  const df = document.getElementById('filter-date-from');
+  const dt = document.getElementById('filter-date-to');
+  if (df) df.value = '';
+  if (dt) dt.value = '';
   syncFilterButtons();
   document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.val === 'all');
@@ -1210,8 +1258,7 @@ function doExportExcel(filtered) {
 
 function setFilter(key, val) {
   filters[key] = val;
-  currentPage = 1; // Réinitialiser à la page 1 lors d'un changement de filtre
-  if (key === 'assigned') {
+  currentPage = 1; // Réinitialiser à la page 1 lors d'un changement de filtre  if (key === 'assigned') {
     document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.val === val);
     });
@@ -1234,6 +1281,8 @@ function syncFilterButtons() {
 
 function getFiltered() {
   const q = document.getElementById('search-input').value.toLowerCase();
+  const dateFrom = document.getElementById('filter-date-from')?.value || '';
+  const dateTo   = document.getElementById('filter-date-to')?.value || '';
   return entries.filter(e => {
     if (filters.status   !== 'all' && e.status   !== filters.status)   return false;
     if (filters.type     !== 'all' && e.type     !== filters.type)     return false;
@@ -1242,18 +1291,46 @@ function getFiltered() {
       if (filters.assigned === '__none__' && e.assigned && e.assigned.trim()) return false;
       if (filters.assigned !== '__none__' && e.assigned !== filters.assigned) return false;
     }
+    if (filters.categorie && filters.categorie !== 'all' && e.categorie !== filters.categorie) return false;
+    if (dateFrom) {
+      const d = (e.saisieDate||'').slice(0,10);
+      if (d && d < dateFrom) return false;
+    }
+    if (dateTo) {
+      const d = (e.saisieDate||'').slice(0,10);
+      if (d && d > dateTo) return false;
+    }
     if (q && !e.titre.toLowerCase().includes(q) && !e.author?.toLowerCase().includes(q) && !e.id.toLowerCase().includes(q) && !e.desc?.toLowerCase().includes(q) && !e.adresse?.toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
+let sortCol = 'date-desc';
+let sortDir = 1;
+
+function toggleSort(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  // Mettre à jour les indicateurs visuels
+  ['id','titre','type','status','priority','date-desc'].forEach(c => {
+    const el = document.getElementById(`sort-${c}`);
+    if (el) el.textContent = sortCol === c ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+  });
+  render();
+}
+
 function getSorted(arr) {
-  const s = document.getElementById('sort-select').value;
   return [...arr].sort((a,b) => {
-    if (s==='date-desc') return new Date(b.date)-new Date(a.date);
-    if (s==='date-asc')  return new Date(a.date)-new Date(b.date);
-    if (s==='priority') { const p={Haute:0,Moyenne:1,Basse:2}; return p[a.priority]-p[b.priority]; }
-    if (s==='status') return a.status.localeCompare(b.status);
+    let va, vb;
+    if (sortCol==='date-desc') { va=new Date(a.saisieDate||a.date); vb=new Date(b.saisieDate||b.date); }
+    else if (sortCol==='priority') { const p={Haute:0,Moyenne:1,Basse:2}; va=p[a.priority]??1; vb=p[b.priority]??1; }
+    else if (sortCol==='status') { va=a.status||''; vb=b.status||''; }
+    else if (sortCol==='type')   { va=a.type||'';   vb=b.type||'';   }
+    else if (sortCol==='titre')  { va=a.titre||'';  vb=b.titre||'';  }
+    else if (sortCol==='id')     { va=parseInt(a.id.replace('RQ-','')); vb=parseInt(b.id.replace('RQ-','')); }
+    else { va=a[sortCol]||''; vb=b[sortCol]||''; }
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return  1 * sortDir;
     return 0;
   });
 }
@@ -1360,6 +1437,25 @@ function render() {
   document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.val === filters.assigned);
   });
+
+  // Panneau "Par catégorie" — construit dynamiquement
+  const catMap = {};
+  entries.forEach(e => {
+    const c = (e.categorie || '').trim();
+    if (c) catMap[c] = (catMap[c] || 0) + 1;
+  });
+  const catPanel = document.getElementById('filter-categorie-dynamic');
+  if (catPanel) {
+    catPanel.innerHTML = `<button class="filter-btn${(!filters.categorie||filters.categorie==='all')?' active':''}" onclick="setFilter('categorie','all')" data-cat="all">Toutes <span class="filter-count">${entries.length}</span></button>` +
+      Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([cat,count]) => {
+        const isActive = filters.categorie === cat;
+        const short = cat.length > 22 ? cat.slice(0,22)+'…' : cat;
+        return `<button class="filter-btn${isActive?' active':''}" onclick="setFilter('categorie','${cat.replace(/'/g,"\\'")}')" title="${cat}">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${short}</span>
+          <span class="filter-count">${count}</span>
+        </button>`;
+      }).join('');
+  }
 
   const body = document.getElementById('table-body');
   if (filtered.length === 0) {
@@ -1675,7 +1771,39 @@ function buildMappingUI(){const chips=document.getElementById('col-chips');chips
 function updatePreviewCol(sel){const field=sel.dataset.field;const col=sel.value;const preview=col?((importRows[0]||{})[col]||'').slice(0,30):'—';document.getElementById(`prev-${field}`).textContent=preview||'—';}
 function getMapping(){const m={};document.querySelectorAll('.mapping-sel').forEach(s=>{m[s.dataset.field]=s.value;});return m;}
 function normalizeVal(field,raw){if(!raw)return'';const v=raw.trim(),vl=v.toLowerCase();if(field==='type')return TYPE_MAP[vl]||'Requête';if(field==='status')return STATUS_MAP[vl]||'Ouvert';if(field==='priority')return PRIO_MAP[vl]||'Moyenne';if(field==='date'||field==='saisieDate'||field==='echeanceDate'||field==='fermetureDate'||field==='actionDate'){return v;}return v;}
-function buildPreview(){const mapping=getMapping();if(!mapping.titre){toast('Veuillez associer le champ "Titre".','danger');return;}importMapped=importRows.map(row=>{const e={};APP_FIELDS.forEach(f=>{const col=mapping[f.key];e[f.key]=col?normalizeVal(f.key,row[col]):'';});if(!e.status)e.status='Ouvert';if(!e.priority)e.priority='Moyenne';if(!e.type)e.type='Requête';if(!e.date)e.date=new Date().toISOString();return e;}).filter(e=>e.titre);document.getElementById('preview-count').textContent=importMapped.length;const tbody=document.getElementById('preview-rows');tbody.innerHTML=importMapped.slice(0,50).map(e=>`<tr><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.titre}</td><td>${typeBadge(e.type)}</td><td>${statusBadge(e.status)}</td><td style="font-size:11px;">${priorityHTML(e.priority)}</td><td style="color:var(--muted);font-size:11px;">${e.author||'—'}</td></tr>`).join('');if(importMapped.length>50){tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px;">… et ${importMapped.length-50} autres</td></tr>`;}}
+function buildPreview(){
+  const mapping=getMapping();
+  if(!mapping.titre){toast('Veuillez associer le champ "Titre".','danger');return;}
+  const existingTitles=new Set(entries.map(e=>e.titre.toLowerCase()));
+  importMapped=importRows.map(row=>{
+    const e={};
+    APP_FIELDS.forEach(f=>{const col=mapping[f.key];e[f.key]=col?normalizeVal(f.key,row[col]):'';});
+    if(!e.status)e.status='Ouvert';
+    if(!e.priority)e.priority='Moyenne';
+    if(!e.type)e.type='Requête';
+    if(!e.date)e.date=new Date().toISOString();
+    e._isDuplicate = existingTitles.has(e.titre.toLowerCase());
+    return e;
+  }).filter(e=>e.titre);
+  const dupeCount = importMapped.filter(e=>e._isDuplicate).length;
+  document.getElementById('preview-count').textContent=importMapped.length;
+  const tbody=document.getElementById('preview-rows');
+  tbody.innerHTML=importMapped.slice(0,50).map(e=>`
+    <tr style="${e._isDuplicate?'background:rgba(220,38,38,0.06);':''}">
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e._isDuplicate?'⚠ ':''}<span title="${e.titre}">${e.titre}</span></td>
+      <td>${typeBadge(e.type)}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td style="font-size:11px;">${priorityHTML(e.priority)}</td>
+      <td style="color:var(--muted);font-size:11px;">${e.author||'—'}</td>
+    </tr>`).join('');
+  if(importMapped.length>50){tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px;">… et ${importMapped.length-50} autres</td></tr>`;}
+  if(dupeCount>0){
+    const warn=document.createElement('div');
+    warn.style.cssText='margin-top:8px;padding:8px 12px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:6px;font-size:11px;color:var(--danger);';
+    warn.innerHTML=`⚠ <strong>${dupeCount} doublon(s) détecté(s)</strong> — titres déjà présents dans la liste. Activez "Ignorer les doublons" ci-dessous pour les sauter.`;
+    tbody.parentElement.insertAdjacentElement('afterend', warn);
+  }
+}
 
 async function doImport() {
   const skipDupes=document.getElementById('skip-dupes').checked;
