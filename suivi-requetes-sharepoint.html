@@ -790,10 +790,10 @@ async function createInSP(data) {
     RQ_Assigne:        data.assigned,
     RQ_Dept:           data.dept || '',
     RQ_Actions:        data.actions || '',
-    RQ_DateAction:     data.actionDate    || null,
-    RQ_DateSaisie:     data.saisieDate    || null,
-    RQ_DateEcheance:   data.echeanceDate  || null,
-    RQ_DateFermeture:  data.fermetureDate || null,
+    RQ_DateAction:     toSPDate(data.actionDate),
+    RQ_DateSaisie:     toSPDate(data.saisieDate),
+    RQ_DateEcheance:   toSPDate(data.echeanceDate),
+    RQ_DateFermeture:  toSPDate(data.fermetureDate),
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
     RQ_Categorie:      data.categorie     || '',
@@ -834,10 +834,10 @@ async function updateInSP(spId, data) {
     RQ_Assigne:        data.assigned,
     RQ_Dept:           data.dept || '',
     RQ_Actions:        data.actions || '',
-    RQ_DateAction:     data.actionDate    || null,
-    RQ_DateSaisie:     data.saisieDate    || null,
-    RQ_DateEcheance:   data.echeanceDate  || null,
-    RQ_DateFermeture:  data.fermetureDate || null,
+    RQ_DateAction:     toSPDate(data.actionDate),
+    RQ_DateSaisie:     toSPDate(data.saisieDate),
+    RQ_DateEcheance:   toSPDate(data.echeanceDate),
+    RQ_DateFermeture:  toSPDate(data.fermetureDate),
     RQ_ResPrevu:       data.resPrevu !== '' ? parseInt(data.resPrevu) : null,
     RQ_ResReel:        data.resReel  !== '' ? parseInt(data.resReel)  : null,
     RQ_Categorie:      data.categorie     || '',
@@ -1228,6 +1228,20 @@ function toInputDate(val) {
   // Format ISO avec T
   if (val.includes('T')) return val.split('T')[0];
   return '';
+}
+
+// Convertit une date en format ISO pour SharePoint (null si vide/invalide)
+function toSPDate(val) {
+  if (!val) return null;
+  // Format JJ/MM/AAAA HH:MM (Modellium)
+  const m1 = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}T12:00:00Z`;
+  // Format AAAA-MM-JJ
+  const m2 = val.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m2) return `${m2[1]}T12:00:00Z`;
+  // Format ISO déjà correct
+  if (val.includes('T')) return val;
+  return null;
 }
 
 function render() {
