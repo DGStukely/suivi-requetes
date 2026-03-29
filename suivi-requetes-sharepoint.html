@@ -782,8 +782,8 @@ async function createInSP(data) {
   // Forcer renouvellement du token et digest à chaque appel
   msalToken = null;
   const digest = await getFormDigest();
+  const token = await getMsalToken();
   const body = {
-    __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
     Title:           cleanText(data.titre),
     RQ_Description:  data.desc || '',
     RQ_Type:         data.type,
@@ -804,15 +804,14 @@ async function createInSP(data) {
     RQ_Adresse:      cleanText(data.adresse),
     RQ_ModifiePar:   cleanText(data.modifiePar),
   };
-  const token = await getMsalToken();
   console.log('SP body:', JSON.stringify(body));
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
       method: 'POST',
       headers: {
-        'Accept': 'application/json;odata=verbose',
-        'Content-Type': 'application/json;odata=verbose',
+        'Accept': 'application/json;odata=nometadata',
+        'Content-Type': 'application/json;odata=nometadata',
         'X-RequestDigest': digest,
         'Authorization': `Bearer ${token}`
       },
@@ -825,7 +824,7 @@ async function createInSP(data) {
     throw new Error(`Erreur création: ${r.status}`);
   }
   const d = await r.json();
-  return d.d.Id;
+  return d.id;
 }
 
 // Met à jour un élément existant dans SP
@@ -1619,6 +1618,9 @@ async function doImport() {
       try{
         document.getElementById('loading-msg').textContent=`Import dans SharePoint… (${i+1}/${toImport.length})`;
         const spId=await createInSP(toImport[i]);
+        entries.unshift({id:`RQ-${spId}`,spId,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
+        added++;
+      }catch(e){
         entries.unshift({id:`RQ-${spId}`,spId,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
         added++;
       }catch(e){
