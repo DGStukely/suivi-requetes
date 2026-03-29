@@ -779,6 +779,8 @@ async function fetchFromSP() {
 // Crée un nouvel élément dans la liste SP
 async function createInSP(data) {
   console.log('createInSP data:', JSON.stringify({saisieDate:data.saisieDate, fermetureDate:data.fermetureDate, echeanceDate:data.echeanceDate}));
+  // Forcer renouvellement du token et digest à chaque appel
+  msalToken = null;
   const digest = await getFormDigest();
   const body = {
     __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
