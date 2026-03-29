@@ -21,6 +21,20 @@
     --font-display: 'DM Serif Display', serif;
     --font-mono: 'DM Mono', monospace;
   }
+  body.light-mode {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #eeecea;
+    --border: #d8d5ce;
+    --accent: #b89a20;
+    --accent2: #c07840;
+    --danger: #c0392b;
+    --success: #27a04a;
+    --info: #2a6faa;
+    --text: #1a1916;
+    --muted: #8a8680;
+  }
+  body.light-mode::before { background-image: linear-gradient(rgba(180,150,32,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(180,150,32,0.05) 1px, transparent 1px); }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 13px; min-height: 100vh; overflow-x: hidden; }
   body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(232,197,71,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(232,197,71,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
@@ -245,6 +259,7 @@
       <span id="sp-status-text">Connexion…</span>
     </div>
     <button class="icon-btn" title="Configurer SharePoint" onclick="openSpConfig()" style="font-size:15px;">⚙</button>
+    <button class="icon-btn" title="Mode clair/sombre" onclick="toggleDarkMode()" id="dark-mode-btn" style="font-size:15px;">☀</button>
     <span style="color:var(--muted);font-size:11px;" id="date-display"></span>
   </div>
 </header>
@@ -267,6 +282,11 @@
         <div id="sp-info-panel">Vérification de la connexion SharePoint…</div>
         <button class="btn btn-ghost" style="width:100%;margin-top:8px;font-size:11px;" onclick="forceSyncFromSP()">↻ Rafraîchir</button>
       </div>
+    </div>
+
+    <div class="panel" id="panel-alertes" style="display:none;">
+      <div class="panel-header" style="color:var(--danger);">⚠ Échéances à venir</div>
+      <div class="panel-body" id="alertes-body" style="max-height:150px;overflow-y:auto;font-size:11px;"></div>
     </div>
 
     <div class="filters-grid">
@@ -313,6 +333,11 @@
     </div>
 
     <div class="panel">
+      <div class="panel-header">Par département</div>
+      <div class="panel-body" id="filter-dept-dynamic" style="max-height:120px;overflow-y:auto;"></div>
+    </div>
+
+    <div class="panel">
       <div class="panel-header">Par catégorie</div>
       <div class="panel-body" id="filter-categorie-dynamic" style="max-height:140px;overflow-y:auto;"></div>
     </div>
@@ -328,10 +353,13 @@
       <input type="date" id="filter-date-to" onchange="currentPage=1;render()" title="Date de saisie — au" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
       <button class="btn btn-ghost" onclick="resetFilters()" title="Réinitialiser les filtres">✕ Filtres</button>
       <button class="btn btn-ghost" onclick="exportExcel()" title="Exporter en Excel">📥 Excel</button>
+      <button class="btn btn-ghost" onclick="toggleDashboard()" id="btn-dashboard" title="Tableau de bord">📊 Tableau de bord</button>
       <button class="btn btn-modellium" onclick="openImportModal()">⬆ Importer Modellium</button>
       <button class="btn btn-rapport" onclick="openRapportModal()">🖨 Rapport</button>
       <button class="btn btn-primary" onclick="openModal()">＋ Nouvelle entrée</button>
     </div>
+
+    <div id="dashboard-panel" style="display:none;margin-bottom:1rem;"></div>
 
     <div class="table-wrap">
       <div class="table-header" style="grid-template-columns: 80px 1fr 100px 110px 100px 120px 90px 90px;">
@@ -453,6 +481,10 @@
       <div class="form-group">
         <label class="form-label">Sous-catégorie</label>
         <input type="text" class="full" id="f-sous-categorie" placeholder="Sous-catégorie…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Adresse</label>
+        <input type="text" class="full" id="f-adresse" placeholder="Adresse concernée…">
       </div>
       <div style="border-top:1px solid var(--border);margin:8px 0;padding-top:14px;">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent2);margin-bottom:10px;">📅 Dates & délais</div>
@@ -698,7 +730,7 @@ let spOnline  = false;      // true = connecté à SharePoint
 let currentUser = null;     // objet utilisateur SP courant
 let entries = [];           // données en mémoire
 let idCounter = parseInt(localStorage.getItem('rq-counter') || '100');
-let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all', categorie: 'all' };
+let filters = { status: 'Ouvert', type: 'all', priority: 'all', assigned: 'all', categorie: 'all', dept: 'all' };
 let currentPage = 1;
 let detailId = null;
 
@@ -1006,6 +1038,7 @@ async function saveEntry() {
     dept:          document.getElementById('f-dept').value,
     categorie:     document.getElementById('f-categorie').value,
     sousCategorie: document.getElementById('f-sous-categorie').value,
+    adresse:       document.getElementById('f-adresse').value,
     actions:       document.getElementById('f-actions').value,
     actionDate:    document.getElementById('f-action-date').value || '',
     saisieDate:    document.getElementById('f-saisie-date').value || '',
@@ -1198,8 +1231,180 @@ function changePage(dir) {
   render();
 }
 
+// ── DARK MODE ──────────────────────────────────────────────────────
+function toggleDarkMode() {
+  const isLight = document.body.classList.toggle('light-mode');
+  document.getElementById('dark-mode-btn').textContent = isLight ? '🌙' : '☀';
+  localStorage.setItem('rq-theme', isLight ? 'light' : 'dark');
+}
+function initTheme() {
+  if (localStorage.getItem('rq-theme') === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('dark-mode-btn').textContent = '🌙';
+  }
+}
+
+// ── ALERTES ÉCHÉANCES ──────────────────────────────────────────────
+function updateAlertes() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
+  const alertes = entries.filter(e => {
+    if (!e.echeanceDate || e.status === 'Fermé' || e.status === 'Résolu') return false;
+    const d = new Date(toSPDate(e.echeanceDate));
+    return d && d <= in7;
+  }).sort((a,b) => new Date(toSPDate(a.echeanceDate)) - new Date(toSPDate(b.echeanceDate)));
+  const panel = document.getElementById('panel-alertes');
+  const body  = document.getElementById('alertes-body');
+  if (alertes.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  body.innerHTML = alertes.map(e => {
+    const d = new Date(toSPDate(e.echeanceDate));
+    const overdue = d < today;
+    const diff = Math.round((d - today) / 86400000);
+    const label = overdue ? `⚠ ${Math.abs(diff)}j de retard` : diff === 0 ? `⚠ Aujourd'hui` : `Dans ${diff}j`;
+    return `<div onclick="openDetail('${e.id}')" style="padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;color:var(--text);">${e.titre}</span>
+      <span style="font-size:10px;color:${overdue?'var(--danger)':'var(--accent2)'};white-space:nowrap;margin-left:6px;">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── TABLEAU DE BORD ────────────────────────────────────────────────
+let dashboardVisible = false;
+function toggleDashboard() {
+  dashboardVisible = !dashboardVisible;
+  const panel = document.getElementById('dashboard-panel');
+  const btn   = document.getElementById('btn-dashboard');
+  if (!dashboardVisible) { panel.style.display = 'none'; btn.textContent = '📊 Tableau de bord'; return; }
+  btn.textContent = '✕ Fermer tableau de bord';
+  renderDashboard();
+  panel.style.display = '';
+}
+
+function renderDashboard() {
+  const panel = document.getElementById('dashboard-panel');
+  const filtered = getSorted(getFiltered());
+
+  // Stats par statut
+  const byStatus = {};
+  const byType = {};
+  const byDept = {};
+  const byMonth = {};
+  filtered.forEach(e => {
+    byStatus[e.status] = (byStatus[e.status]||0) + 1;
+    byType[e.type]     = (byType[e.type]||0) + 1;
+    byDept[e.dept||'—'] = (byDept[e.dept||'—']||0) + 1;
+    const m = (e.saisieDate||e.date||'').slice(0,7);
+    if (m) byMonth[m] = (byMonth[m]||0) + 1;
+  });
+
+  const bar = (val, max, color) => `<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${max?Math.round(val/max*100):0}%;background:${color};border-radius:4px;"></div></div>`;
+  const maxStatus = Math.max(...Object.values(byStatus), 1);
+  const maxType   = Math.max(...Object.values(byType), 1);
+  const maxDept   = Math.max(...Object.values(byDept), 1);
+  const months    = Object.keys(byMonth).sort().slice(-6);
+  const maxMonth  = Math.max(...months.map(m=>byMonth[m]), 1);
+
+  const statusColors = {Ouvert:'var(--accent)',  'En cours':'var(--info)', Résolu:'var(--success)', Fermé:'var(--muted)'};
+  const typeColors   = {Plainte:'var(--danger)', Requête:'var(--accent)', Information:'var(--info)', Suggestion:'var(--success)'};
+
+  panel.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;">Par statut</div>
+        ${Object.entries(byStatus).map(([s,n])=>`
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;"><span>${s}</span><strong>${n}</strong></div>
+            ${bar(n, maxStatus, statusColors[s]||'var(--accent)')}
+          </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;">Par type</div>
+        ${Object.entries(byType).map(([t,n])=>`
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;"><span>${t}</span><strong>${n}</strong></div>
+            ${bar(n, maxType, typeColors[t]||'var(--accent)')}
+          </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;">Par département</div>
+        ${Object.entries(byDept).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([d,n])=>`
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${d}</span><strong>${n}</strong></div>
+            ${bar(n, maxDept, 'var(--accent2)')}
+          </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;">6 derniers mois</div>
+        ${months.map(m=>{
+          const label = new Date(m+'-01').toLocaleDateString('fr-CA',{month:'short',year:'2-digit'});
+          return `<div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;"><span>${label}</span><strong>${byMonth[m]}</strong></div>
+            ${bar(byMonth[m], maxMonth, 'var(--info)')}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// ── MODIFICATION EN LOT ────────────────────────────────────────────
+let selectedIds = new Set();
+
+function toggleSelect(id, ev) {
+  ev.stopPropagation();
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  updateBulkBar();
+  render();
+}
+
+function updateBulkBar() {
+  let bar = document.getElementById('bulk-bar');
+  if (selectedIds.size === 0) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulk-bar';
+    bar.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.4);font-size:12px;';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <span style="color:var(--accent);font-weight:600;">${selectedIds.size} sélectionnée(s)</span>
+    <select id="bulk-status-sel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;">
+      <option value="">Changer statut…</option>
+      <option>Ouvert</option><option>En cours</option><option>Résolu</option><option>Fermé</option>
+    </select>
+    <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="applyBulkStatus()">Appliquer</button>
+    <button class="btn btn-ghost" style="padding:4px 12px;font-size:11px;" onclick="clearSelection()">✕ Annuler</button>`;
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  updateBulkBar();
+  render();
+}
+
+async function applyBulkStatus() {
+  const newStatus = document.getElementById('bulk-status-sel').value;
+  if (!newStatus) { toast('Choisissez un statut', 'danger'); return; }
+  const ids = [...selectedIds];
+  let updated = 0;
+  for (const id of ids) {
+    const idx = entries.findIndex(e => e.id === id);
+    if (idx < 0) continue;
+    entries[idx].status = newStatus;
+    if (spOnline && entries[idx].spId) {
+      try { await updateInSP(parseInt(entries[idx].spId), entries[idx]); } catch(e) {}
+    }
+    updated++;
+  }
+  saveLocal();
+  clearSelection();
+  render();
+  toast(`${updated} entrée(s) mise(s) à jour → ${newStatus} ✓`);
+}
+
 function resetFilters() {
-  filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all', categorie: 'all' };
+  filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all', categorie: 'all', dept: 'all' };
   currentPage = 1;
   document.getElementById('search-input').value = '';
   const df = document.getElementById('filter-date-from');
@@ -1292,6 +1497,7 @@ function getFiltered() {
       if (filters.assigned !== '__none__' && e.assigned !== filters.assigned) return false;
     }
     if (filters.categorie && filters.categorie !== 'all' && e.categorie !== filters.categorie) return false;
+    if (filters.dept && filters.dept !== 'all' && e.dept !== filters.dept) return false;
     if (dateFrom) {
       const d = (e.saisieDate||'').slice(0,10);
       if (d && d < dateFrom) return false;
@@ -1438,7 +1644,27 @@ function render() {
     b.classList.toggle('active', b.dataset.val === filters.assigned);
   });
 
-  // Panneau "Par catégorie" — construit dynamiquement
+  // Panneau "Par département" — construit dynamiquement
+  const deptMap = {};
+  entries.forEach(e => {
+    const d = (e.dept || '').trim();
+    if (d) deptMap[d] = (deptMap[d] || 0) + 1;
+  });
+  const deptPanel = document.getElementById('filter-dept-dynamic');
+  if (deptPanel) {
+    deptPanel.innerHTML = `<button class="filter-btn${(!filters.dept||filters.dept==='all')?' active':''}" onclick="setFilter('dept','all')" data-dept="all">Tous <span class="filter-count">${entries.length}</span></button>` +
+      Object.entries(deptMap).sort((a,b)=>b[1]-a[1]).map(([dept,count]) => {
+        const isActive = filters.dept === dept;
+        return `<button class="filter-btn${isActive?' active':''}" onclick="setFilter('dept','${dept.replace(/'/g,"\\'")}')" title="${dept}">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;">${dept}</span>
+          <span class="filter-count">${count}</span>
+        </button>`;
+      }).join('');
+  }
+
+  // Alertes échéances
+  updateAlertes();
+  if (dashboardVisible) renderDashboard();
   const catMap = {};
   entries.forEach(e => {
     const c = (e.categorie || '').trim();
@@ -1470,11 +1696,15 @@ function render() {
 
   body.innerHTML = paginated.map((e,i) => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const ech = e.echeanceDate ? new Date(e.echeanceDate+'T12:00:00') : null;
+    const ech = e.echeanceDate ? new Date(toSPDate(e.echeanceDate)) : null;
     const overdue = ech && ech < today && e.status !== 'Fermé' && e.status !== 'Résolu';
+    const selected = selectedIds.has(e.id);
     return `
-    <div class="row" style="animation-delay:${i*0.03}s${overdue?';border-left:3px solid var(--danger)':''}" onclick="openDetail('${e.id}')">
-      <div class="row-id">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}${overdue?' <span title="Échéance dépassée" style="color:var(--danger);">⚠</span>':''}</div>
+    <div class="row" style="animation-delay:${i*0.03}s${overdue?';border-left:3px solid var(--danger)':''}${selected?';background:rgba(232,197,71,0.07)':''}" onclick="openDetail('${e.id}')">
+      <div class="row-id" style="display:flex;align-items:center;gap:5px;">
+        <input type="checkbox" ${selected?'checked':''} onclick="toggleSelect('${e.id}',event)" style="accent-color:var(--accent);cursor:pointer;">
+        <span style="font-size:10px;">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}${overdue?' <span title="Échéance dépassée" style="color:var(--danger);">⚠</span>':''}</span>
+      </div>
       <div class="row-title">${e.titre}<small>${e.author||'—'}${e.assigned?' → '+e.assigned:''}</small></div>
       <div>${typeBadge(e.type)}</div>
       <div>${statusBadge(e.status)}</div>
@@ -1523,6 +1753,7 @@ function openModal(id=null) {
     document.getElementById('f-dept').value     = e.dept || '';
     document.getElementById('f-categorie').value = e.categorie || '';
     document.getElementById('f-sous-categorie').value = e.sousCategorie || '';
+    document.getElementById('f-adresse').value   = e.adresse || '';
     document.getElementById('f-actions').value  = e.actions || '';
     document.getElementById('f-action-date').value    = toInputDate(e.actionDate);
     document.getElementById('f-saisie-date').value    = toInputDate(e.saisieDate);
@@ -1535,7 +1766,7 @@ function openModal(id=null) {
     document.getElementById('edit-sp-id').value = e.spId || '';
   } else {
     document.getElementById('modal-title').textContent = 'Nouvelle entrée';
-    ['f-titre','f-desc','f-assigned','f-actions','f-categorie','f-sous-categorie'].forEach(fid=>document.getElementById(fid).value='');
+    ['f-titre','f-desc','f-assigned','f-actions','f-categorie','f-sous-categorie','f-adresse'].forEach(fid=>document.getElementById(fid).value='');
     document.getElementById('f-dept').value          = '';
     document.getElementById('f-action-date').value   = '';
     document.getElementById('f-echeance-date').value = '';
@@ -1856,6 +2087,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // Lancement
+initTheme();
 initApp();
 </script>
 </body>
