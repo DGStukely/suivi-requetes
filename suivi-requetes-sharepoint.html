@@ -781,25 +781,25 @@ async function createInSP(data) {
   const digest = await getFormDigest();
   const body = {
     __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
-    Title:           data.titre,
-    RQ_Description:  data.desc,
+    Title:           cleanText(data.titre),
+    RQ_Description:  data.desc || '',
     RQ_Type:         data.type,
     RQ_Statut:       data.status,
     RQ_Priorite:     data.priority,
-    RQ_Auteur:         data.author,
-    RQ_Assigne:        data.assigned,
-    RQ_Dept:           normalizeDept(data.dept),
-    RQ_Actions:        data.actions || '',
-    RQ_DateAction:     toSPDate(data.actionDate),
-    RQ_DateSaisie:     toSPDate(data.saisieDate),
-    RQ_DateEcheance:   toSPDate(data.echeanceDate),
-    RQ_DateFermeture:  toSPDate(data.fermetureDate),
-    RQ_ResPrevu:       (data.resPrevu !== '' && data.resPrevu != null && !isNaN(parseInt(data.resPrevu))) ? parseInt(data.resPrevu) : null,
-    RQ_ResReel:        (data.resReel  !== '' && data.resReel  != null && !isNaN(parseInt(data.resReel)))  ? parseInt(data.resReel)  : null,
-    RQ_Categorie:      data.categorie     || '',
-    RQ_SousCategorie:  data.sousCategorie || '',
-    RQ_Adresse:        data.adresse       || '',
-    RQ_ModifiePar:     data.modifiePar    || '',
+    RQ_Auteur:       cleanText(data.author),
+    RQ_Assigne:      cleanText(data.assigned),
+    RQ_Dept:         normalizeDept(data.dept),
+    RQ_Actions:      data.actions || '',
+    RQ_DateAction:   toSPDate(data.actionDate),
+    RQ_DateSaisie:   toSPDate(data.saisieDate),
+    RQ_DateEcheance: toSPDate(data.echeanceDate),
+    RQ_DateFermeture:toSPDate(data.fermetureDate),
+    RQ_ResPrevu:     (data.resPrevu !== '' && data.resPrevu != null && !isNaN(parseInt(data.resPrevu))) ? parseInt(data.resPrevu) : null,
+    RQ_ResReel:      (data.resReel  !== '' && data.resReel  != null && !isNaN(parseInt(data.resReel)))  ? parseInt(data.resReel)  : null,
+    RQ_Categorie:    cleanText(data.categorie),
+    RQ_SousCategorie:cleanText(data.sousCategorie),
+    RQ_Adresse:      cleanText(data.adresse),
+    RQ_ModifiePar:   cleanText(data.modifiePar),
   };
   const token = await getMsalToken();
   const r = await fetch(
@@ -815,7 +815,11 @@ async function createInSP(data) {
       body: JSON.stringify(body)
     }
   );
-  if (!r.ok) throw new Error(`Erreur création: ${r.status}`);
+  if (!r.ok) {
+    const errText = await r.text();
+    console.error('SP Error body:', errText);
+    throw new Error(`Erreur création: ${r.status}`);
+  }
   const d = await r.json();
   return d.d.Id;
 }
@@ -825,25 +829,25 @@ async function updateInSP(spId, data) {
   const digest = await getFormDigest();
   const body = {
     __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
-    Title:           data.titre,
-    RQ_Description:  data.desc,
+    Title:           cleanText(data.titre),
+    RQ_Description:  data.desc || '',
     RQ_Type:         data.type,
     RQ_Statut:       data.status,
     RQ_Priorite:     data.priority,
-    RQ_Auteur:         data.author,
-    RQ_Assigne:        data.assigned,
-    RQ_Dept:           normalizeDept(data.dept),
-    RQ_Actions:        data.actions || '',
-    RQ_DateAction:     toSPDate(data.actionDate),
-    RQ_DateSaisie:     toSPDate(data.saisieDate),
-    RQ_DateEcheance:   toSPDate(data.echeanceDate),
-    RQ_DateFermeture:  toSPDate(data.fermetureDate),
-    RQ_ResPrevu:       (data.resPrevu !== '' && data.resPrevu != null && !isNaN(parseInt(data.resPrevu))) ? parseInt(data.resPrevu) : null,
-    RQ_ResReel:        (data.resReel  !== '' && data.resReel  != null && !isNaN(parseInt(data.resReel)))  ? parseInt(data.resReel)  : null,
-    RQ_Categorie:      data.categorie     || '',
-    RQ_SousCategorie:  data.sousCategorie || '',
-    RQ_Adresse:        data.adresse       || '',
-    RQ_ModifiePar:     data.modifiePar    || '',
+    RQ_Auteur:       cleanText(data.author),
+    RQ_Assigne:      cleanText(data.assigned),
+    RQ_Dept:         normalizeDept(data.dept),
+    RQ_Actions:      data.actions || '',
+    RQ_DateAction:   toSPDate(data.actionDate),
+    RQ_DateSaisie:   toSPDate(data.saisieDate),
+    RQ_DateEcheance: toSPDate(data.echeanceDate),
+    RQ_DateFermeture:toSPDate(data.fermetureDate),
+    RQ_ResPrevu:     (data.resPrevu !== '' && data.resPrevu != null && !isNaN(parseInt(data.resPrevu))) ? parseInt(data.resPrevu) : null,
+    RQ_ResReel:      (data.resReel  !== '' && data.resReel  != null && !isNaN(parseInt(data.resReel)))  ? parseInt(data.resReel)  : null,
+    RQ_Categorie:    cleanText(data.categorie),
+    RQ_SousCategorie:cleanText(data.sousCategorie),
+    RQ_Adresse:      cleanText(data.adresse),
+    RQ_ModifiePar:   cleanText(data.modifiePar),
   };
   const token = await getMsalToken();
   const r = await fetch(
@@ -1216,7 +1220,11 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'2-digit'});
 }
 
-// Normalise le département pour correspondre aux valeurs SharePoint
+// Nettoie et tronque un champ texte pour SharePoint (max 255 chars)
+function cleanText(val, maxLen=255) {
+  if (!val) return '';
+  return String(val).trim().slice(0, maxLen);
+}
 function normalizeDept(val) {
   if (!val) return '';
   const map = {
