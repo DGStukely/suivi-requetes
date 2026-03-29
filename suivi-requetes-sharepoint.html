@@ -1622,9 +1622,6 @@ async function doImport() {
         entries.unshift({id:`RQ-${spId}`,spId,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
         added++;
       }catch(e){
-        entries.unshift({id:`RQ-${spId}`,spId,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
-        added++;
-      }catch(e){
         console.error(`Erreur import entrée ${i+1}:`, e.message, JSON.stringify(toImport[i]));
         entries.unshift({id:`RQ-${++idCounter}`,spId:null,date:toImport[i].date||new Date().toISOString(),...toImport[i]});
         added++;
