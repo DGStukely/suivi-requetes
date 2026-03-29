@@ -92,8 +92,8 @@
 
   /* TABLE */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .table-header { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 90px 90px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-  .row { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 90px 90px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.15s; cursor: pointer; animation: rowIn 0.3s ease both; }
+  .table-header { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 120px 90px 90px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 80px 1fr 100px 110px 100px 120px 90px 90px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.15s; cursor: pointer; animation: rowIn 0.3s ease both; }
   @keyframes rowIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
   .row:last-child { border-bottom: none; }
   .row:hover { background: var(--surface2); }
@@ -316,7 +316,7 @@
   <main class="main">
     <div class="toolbar">
       <div class="search-wrap">
-        <input type="text" id="search-input" placeholder="Rechercher…" oninput="render()">
+        <input type="text" id="search-input" placeholder="Rechercher titre, description, adresse…" oninput="currentPage=1;render()">
       </div>
       <select id="sort-select" onchange="render()" style="width:auto;padding-left:10px;">
         <option value="date-desc">Plus récent</option>
@@ -324,14 +324,16 @@
         <option value="priority">Priorité</option>
         <option value="status">Statut</option>
       </select>
+      <button class="btn btn-ghost" onclick="resetFilters()" title="Réinitialiser les filtres">✕ Filtres</button>
+      <button class="btn btn-ghost" onclick="exportExcel()" title="Exporter en Excel">📥 Excel</button>
       <button class="btn btn-modellium" onclick="openImportModal()">⬆ Importer Modellium</button>
       <button class="btn btn-rapport" onclick="openRapportModal()">🖨 Rapport</button>
       <button class="btn btn-primary" onclick="openModal()">＋ Nouvelle entrée</button>
     </div>
 
     <div class="table-wrap">
-      <div class="table-header">
-        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Date de saisie</div><div>Actions</div>
+      <div class="table-header" style="grid-template-columns: 80px 1fr 100px 110px 100px 120px 90px 90px;">
+        <div>ID</div><div>Titre / Auteur</div><div>Type</div><div>Statut</div><div>Priorité</div><div>Adresse</div><div>Date saisie</div><div>Actions</div>
       </div>
       <div id="table-body"></div>
     </div>
@@ -359,16 +361,9 @@
         <label class="form-label">Nom de la liste SharePoint *</label>
         <input type="text" class="full" id="sp-list" placeholder="SuiviRequetes">
       </div>
-      <div class="form-group">
-        <label class="form-label">Mode d'authentification</label>
-        <select class="full" id="sp-auth">
-          <option value="windows">Windows Intégré (NTLM/Kerberos) — recommandé on-premises</option>
-          <option value="forms">Authentification par formulaire</option>
-        </select>
-      </div>
       <div class="sp-config-info" style="color:var(--muted);background:rgba(122,117,112,0.08);border-color:var(--border);">
-        💡 <strong>Prérequis :</strong> Les agents doivent être connectés à <strong>Microsoft 365</strong> dans leur navigateur (Outlook, Teams, ou portal.office.com) avant d'ouvrir l'application. L'authentification se fait automatiquement via le cookie de session.<br><br>
-        <strong>Mode hors-ligne :</strong> Si SharePoint est inaccessible, l'application bascule en mode local (localStorage).
+        💡 <strong>Prérequis :</strong> Les agents doivent être connectés à <strong>Microsoft 365</strong> dans leur navigateur avant d'ouvrir l'application.<br><br>
+        <strong>Mode hors-ligne :</strong> Si SharePoint est inaccessible, l'application bascule en mode local.
       </div>
       <div id="sp-test-result" style="display:none;padding:10px;border-radius:6px;font-size:12px;"></div>
     </div>
@@ -687,7 +682,6 @@ const SP_DEFAULTS = {
   url:  'https://munstukelysud.sharepoint.com/sites/Doc_Public',
   list: 'SuiviRequetes'
 };
-const SP_ONLINE_MODE = true;
 // ─────────────────────────────────────────────────────────────────
 
 let SP_CONFIG = JSON.parse(localStorage.getItem('sp-config') || 'null') || { ...SP_DEFAULTS };
@@ -782,9 +776,6 @@ async function fetchFromSP() {
 
 // Crée un nouvel élément dans la liste SP
 async function createInSP(data) {
-  console.log('createInSP data:', JSON.stringify({saisieDate:data.saisieDate, fermetureDate:data.fermetureDate, echeanceDate:data.echeanceDate}));
-  // Forcer renouvellement du token et digest à chaque appel
-  msalToken = null;
   const digest = await getFormDigest();
   const token = await getMsalToken();
   const body = {
@@ -809,7 +800,6 @@ async function createInSP(data) {
     RQ_Adresse:      cleanText(data.adresse),
     RQ_ModifiePar:   cleanText(data.modifiePar),
   };
-  console.log('SP body:', JSON.stringify(body));
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
@@ -823,11 +813,7 @@ async function createInSP(data) {
       body: JSON.stringify(body)
     }
   );
-  if (!r.ok) {
-    const errText = await r.text();
-    console.error('SP Error body:', errText);
-    throw new Error(`Erreur création: ${r.status}`);
-  }
+  if (!r.ok) throw new Error(`Erreur création: ${r.status}`);
   const d = await r.json();
   return d.d.Id;
 }
@@ -1168,6 +1154,60 @@ function changePage(dir) {
   render();
 }
 
+function resetFilters() {
+  filters = { status: 'all', type: 'all', priority: 'all', assigned: 'all' };
+  currentPage = 1;
+  document.getElementById('search-input').value = '';
+  syncFilterButtons();
+  document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === 'all');
+  });
+  render();
+  toast('Filtres réinitialisés', 'info');
+}
+
+function exportExcel() {
+  const filtered = getSorted(getFiltered());
+  if (filtered.length === 0) { toast('Aucune entrée à exporter', 'danger'); return; }
+  if (typeof XLSX === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => doExportExcel(filtered);
+    document.head.appendChild(s);
+  } else {
+    doExportExcel(filtered);
+  }
+}
+
+function doExportExcel(filtered) {
+  const rows = filtered.map(e => ({
+    'ID': e.id,
+    'Titre': e.titre,
+    'Type': e.type,
+    'Statut': e.status,
+    'Priorité': e.priority,
+    'Auteur': e.author || '',
+    'Assigné à': e.assigned || '',
+    'Département': e.dept || '',
+    'Catégorie': e.categorie || '',
+    'Sous-catégorie': e.sousCategorie || '',
+    'Adresse': e.adresse || '',
+    'Description': e.desc || '',
+    'Date de saisie': e.saisieDate || '',
+    'Date échéance': e.echeanceDate || '',
+    'Date fermeture': e.fermetureDate || '',
+    'Résolution prévue (j)': e.resPrevu || '',
+    'Résolution réelle (j)': e.resReel || '',
+    'Actions': e.actions || '',
+    'Modifiée par': e.modifiePar || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SuiviRequetes');
+  XLSX.writeFile(wb, `SuiviRequetes_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast(`${filtered.length} entrée(s) exportée(s) ✓`);
+}
+
 function setFilter(key, val) {
   filters[key] = val;
   currentPage = 1; // Réinitialiser à la page 1 lors d'un changement de filtre
@@ -1202,7 +1242,7 @@ function getFiltered() {
       if (filters.assigned === '__none__' && e.assigned && e.assigned.trim()) return false;
       if (filters.assigned !== '__none__' && e.assigned !== filters.assigned) return false;
     }
-    if (q && !e.titre.toLowerCase().includes(q) && !e.author?.toLowerCase().includes(q) && !e.id.toLowerCase().includes(q)) return false;
+    if (q && !e.titre.toLowerCase().includes(q) && !e.author?.toLowerCase().includes(q) && !e.id.toLowerCase().includes(q) && !e.desc?.toLowerCase().includes(q) && !e.adresse?.toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -1332,19 +1372,25 @@ function render() {
   const start = (currentPage - 1) * pageSize;
   const paginated = filtered.slice(start, start + pageSize);
 
-  body.innerHTML = paginated.map((e,i) => `
-    <div class="row" style="animation-delay:${i*0.03}s" onclick="openDetail('${e.id}')">
-      <div class="row-id">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}</div>
+  body.innerHTML = paginated.map((e,i) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ech = e.echeanceDate ? new Date(e.echeanceDate+'T12:00:00') : null;
+    const overdue = ech && ech < today && e.status !== 'Fermé' && e.status !== 'Résolu';
+    return `
+    <div class="row" style="animation-delay:${i*0.03}s${overdue?';border-left:3px solid var(--danger)':''}" onclick="openDetail('${e.id}')">
+      <div class="row-id">${e.id}${e.spId?'':' <span style="color:var(--muted);font-size:9px;" title="Non synchronisé">⚠</span>'}${overdue?' <span title="Échéance dépassée" style="color:var(--danger);">⚠</span>':''}</div>
       <div class="row-title">${e.titre}<small>${e.author||'—'}${e.assigned?' → '+e.assigned:''}</small></div>
       <div>${typeBadge(e.type)}</div>
       <div>${statusBadge(e.status)}</div>
       <div style="font-size:12px;">${priorityHTML(e.priority)}</div>
+      <div class="row-date" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.adresse||'—'}</div>
       <div class="row-date">${formatDate(e.saisieDate||e.date)}</div>
       <div class="row-action" onclick="event.stopPropagation()">
         <button class="icon-btn" title="Modifier" onclick="openModal('${e.id}')">✎</button>
         <button class="icon-btn danger" title="Supprimer" onclick="deleteEntry('${e.id}')">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   // Pagination
   if (totalPages > 1) {
@@ -1558,7 +1604,6 @@ function genererRapport() {
   const from=document.getElementById('rpt-date-from').value, to=document.getElementById('rpt-date-to').value;
   const filtered=getRapportEntries().sort((a,b)=>new Date(a.date)-new Date(b.date));
   const fmtDate=iso=>new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'long',year:'numeric'});
-  const fmtShort=iso=>new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'numeric'});
   const byType={},byStatus={},byPrio={};
   filtered.forEach(e=>{byType[e.type]=(byType[e.type]||0)+1;byStatus[e.status]=(byStatus[e.status]||0)+1;byPrio[e.priority]=(byPrio[e.priority]||0)+1;});
   const sC={'Ouvert':'#b45309','En cours':'#1d4ed8','Résolu':'#166534','Fermé':'#4b5563'};
