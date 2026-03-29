@@ -788,7 +788,7 @@ async function createInSP(data) {
     RQ_Priorite:     data.priority,
     RQ_Auteur:         data.author,
     RQ_Assigne:        data.assigned,
-    RQ_Dept:           data.dept || '',
+    RQ_Dept:           normalizeDept(data.dept),
     RQ_Actions:        data.actions || '',
     RQ_DateAction:     toSPDate(data.actionDate),
     RQ_DateSaisie:     toSPDate(data.saisieDate),
@@ -817,7 +817,7 @@ async function createInSP(data) {
   );
   if (!r.ok) throw new Error(`Erreur création: ${r.status}`);
   const d = await r.json();
-  return d.d.Id;  // ID assigné par SharePoint
+  return d.d.Id;
 }
 
 // Met à jour un élément existant dans SP
@@ -832,7 +832,7 @@ async function updateInSP(spId, data) {
     RQ_Priorite:     data.priority,
     RQ_Auteur:         data.author,
     RQ_Assigne:        data.assigned,
-    RQ_Dept:           data.dept || '',
+    RQ_Dept:           normalizeDept(data.dept),
     RQ_Actions:        data.actions || '',
     RQ_DateAction:     toSPDate(data.actionDate),
     RQ_DateSaisie:     toSPDate(data.saisieDate),
@@ -1216,6 +1216,21 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit',year:'2-digit'});
 }
 
+// Normalise le département pour correspondre aux valeurs SharePoint
+function normalizeDept(val) {
+  if (!val) return '';
+  const map = {
+    'travaux publics': 'Travaux publics',
+    'travaux public': 'Travaux publics',
+    'administration': 'Administration',
+    'urbanisme': 'Urbanisme',
+    'loisirs': 'Loisirs',
+    'environnement': 'Environnement',
+    'autre': 'Autre',
+  };
+  return map[val.toLowerCase()] || val;
+}
+
 // Convertit n'importe quel format de date en AAAA-MM-JJ pour les champs input[type=date]
 function toInputDate(val) {
   if (!val) return '';
@@ -1554,7 +1569,7 @@ const AUTO_MAP={
   categorie:['catégorie','categorie','category','cat'],
 };
 const TYPE_MAP={'plainte':'Plainte','complaint':'Plainte','réclamation':'Plainte','reclamation':'Plainte','requête':'Requête','requete':'Requête','request':'Requête','demande':'Requête','information':'Information','info':'Information','renseignement':'Information','suggestion':'Suggestion','amélioration':'Suggestion','amelioration':'Suggestion'};
-const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé'};
+const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé','réouvert':'Ouvert','reouvert':'Ouvert','reopened':'Ouvert'};
 const PRIO_MAP={'haute':'Haute','high':'Haute','urgent':'Haute','urgente':'Haute','élevée':'Haute','elevee':'Haute','moyenne':'Moyenne','medium':'Moyenne','normale':'Moyenne','normal':'Moyenne','modérée':'Moyenne','basse':'Basse','low':'Basse','faible':'Basse'};
 
 function openImportModal(){importStep=1;importRows=[];importHeaders=[];importMapped=[];document.getElementById('import-file-input').value='';document.getElementById('import-btn-next').disabled=true;document.getElementById('import-btn-next').textContent='Continuer →';document.getElementById('import-btn-back').style.display='none';setImportStep(1);document.getElementById('import-overlay').classList.add('open');}
