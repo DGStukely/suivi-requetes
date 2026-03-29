@@ -802,6 +802,7 @@ async function createInSP(data) {
     RQ_ModifiePar:   cleanText(data.modifiePar),
   };
   const token = await getMsalToken();
+  console.log('SP body:', JSON.stringify(body));
   const r = await fetch(
     spApiUrl(`web/lists/getbytitle('${encodeURIComponent(SP_CONFIG.list)}')/items`),
     {
