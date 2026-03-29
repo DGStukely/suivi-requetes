@@ -784,6 +784,7 @@ async function createInSP(data) {
   const digest = await getFormDigest();
   const token = await getMsalToken();
   const body = {
+    __metadata: { type: `SP.Data.${SP_CONFIG.list}ListItem` },
     Title:           cleanText(data.titre),
     RQ_Description:  data.desc || '',
     RQ_Type:         data.type,
@@ -810,8 +811,8 @@ async function createInSP(data) {
     {
       method: 'POST',
       headers: {
-        'Accept': 'application/json;odata=nometadata',
-        'Content-Type': 'application/json;odata=nometadata',
+        'Accept': 'application/json;odata=verbose',
+        'Content-Type': 'application/json;odata=verbose',
         'X-RequestDigest': digest,
         'Authorization': `Bearer ${token}`
       },
@@ -824,7 +825,7 @@ async function createInSP(data) {
     throw new Error(`Erreur création: ${r.status}`);
   }
   const d = await r.json();
-  return d.id;
+  return d.d.Id;
 }
 
 // Met à jour un élément existant dans SP
