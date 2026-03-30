@@ -1463,7 +1463,8 @@ function doExportExcel(filtered) {
 
 function setFilter(key, val) {
   filters[key] = val;
-  currentPage = 1; // Réinitialiser à la page 1 lors d'un changement de filtre  if (key === 'assigned') {
+  currentPage = 1;
+  if (key === 'assigned') {
     document.querySelectorAll('#filter-assigned .filter-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.val === val);
     });
