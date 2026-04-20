@@ -2083,7 +2083,7 @@ async function doImport() {
     // Enregistre dans les sets pour éviter les doublons entre lignes du même fichier
     if((e.refModellium||'').trim()) sets.refs.add(e.refModellium.trim().toLowerCase());
     sets.titDat.add(`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`);
-    sets.titres.add(e.titre.toLowerCase());
+    sets.titAut.add(`${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`);
   });
   closeImportModal();
   if(spOnline&&toImport.length>0){
