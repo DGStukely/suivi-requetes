@@ -672,8 +672,8 @@
       </div>
       <div class="import-step" id="import-step-3">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <span style="font-size:12px;color:var(--text);"><span id="preview-count" style="color:#7ec8e3;font-weight:500;"></span> entrées prêtes à importer</span>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="skip-dupes" style="width:auto;padding:0;"> Ignorer les doublons</label>
+          <span style="font-size:12px;color:var(--text);"><span id="preview-count" style="color:#7ec8e3;font-weight:500;"></span> entrées détectées — <span id="preview-new-count" style="color:var(--success);font-weight:500;"></span> nouvelles, <span id="preview-dupe-count" style="color:var(--danger);font-weight:500;"></span> doublons</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="skip-dupes" checked style="width:auto;padding:0;"> Ignorer les doublons</label>
         </div>
         <div class="preview-scroll" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
           <table class="mapping-table"><thead><tr><th>Titre</th><th>Type</th><th>Statut</th><th>Priorité</th><th>Auteur</th></tr></thead><tbody id="preview-rows"></tbody></table>
@@ -1966,6 +1966,7 @@ const APP_FIELDS=[
   {key:'adresse',label:'Adresse',required:false},
   {key:'sousCategorie',label:'Sous-catégorie',required:false},
   {key:'categorie',label:'Catégorie',required:false},
+  {key:'refModellium',label:'Réf. Modellium (no unique)',required:false},
 ];
 const AUTO_MAP={
   titre:['titre','title','sujet','objet','subject','intitulé','libellé','demande','nom'],
@@ -1984,6 +1985,7 @@ const AUTO_MAP={
   adresse:['adresse','address','adresse civique','adresse complète','rue'],
   sousCategorie:['sous-catégorie','sous catégorie','sous-categorie','subcategory','sub-category','sous categorie'],
   categorie:['catégorie','categorie','category','cat'],
+  refModellium:['no requête','no_requete','no demande','numéro de requête','référence','reference','identifiant','id demande','id requête','code requête','no dossier','dossier','number','ref','réf'],
 };
 const TYPE_MAP={'plainte':'Plainte','complaint':'Plainte','réclamation':'Plainte','reclamation':'Plainte','requête':'Requête','requete':'Requête','request':'Requête','demande':'Requête','information':'Information','info':'Information','renseignement':'Information','suggestion':'Suggestion','amélioration':'Suggestion','amelioration':'Suggestion'};
 const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé','réouvert':'Ouvert','reouvert':'Ouvert','reopened':'Ouvert'};
@@ -2005,10 +2007,29 @@ function buildMappingUI(){const chips=document.getElementById('col-chips');chips
 function updatePreviewCol(sel){const field=sel.dataset.field;const col=sel.value;const preview=col?((importRows[0]||{})[col]||'').slice(0,30):'—';document.getElementById(`prev-${field}`).textContent=preview||'—';}
 function getMapping(){const m={};document.querySelectorAll('.mapping-sel').forEach(s=>{m[s.dataset.field]=s.value;});return m;}
 function normalizeVal(field,raw){if(!raw)return'';const v=raw.trim(),vl=v.toLowerCase();if(field==='type')return TYPE_MAP[vl]||'Requête';if(field==='status')return STATUS_MAP[vl]||'Ouvert';if(field==='priority')return PRIO_MAP[vl]||'Moyenne';if(field==='date'||field==='saisieDate'||field==='echeanceDate'||field==='fermetureDate'||field==='actionDate'){return v;}return v;}
+function buildDupeSets() {
+  const refs   = new Set(entries.map(e=>(e.refModellium||'').trim().toLowerCase()).filter(Boolean));
+  const titDat = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`));
+  const titres = new Set(entries.map(e=>e.titre.toLowerCase()));
+  return { refs, titDat, titres };
+}
+
+function checkDupe(e, sets) {
+  const ref = (e.refModellium||'').trim().toLowerCase();
+  if (ref && sets.refs.has(ref))
+    return { dupe: true, reason: `Réf. ${e.refModellium} déjà présente` };
+  const titDatKey = `${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`;
+  if (sets.titDat.has(titDatKey) && (e.saisieDate||'').slice(0,10))
+    return { dupe: true, reason: 'Titre + date identiques' };
+  if (sets.titres.has(e.titre.toLowerCase()))
+    return { dupe: true, reason: 'Titre déjà présent' };
+  return { dupe: false, reason: '' };
+}
+
 function buildPreview(){
   const mapping=getMapping();
   if(!mapping.titre){toast('Veuillez associer le champ "Titre".','danger');return;}
-  const existingTitles=new Set(entries.map(e=>e.titre.toLowerCase()));
+  const sets = buildDupeSets();
   importMapped=importRows.map(row=>{
     const e={};
     APP_FIELDS.forEach(f=>{const col=mapping[f.key];e[f.key]=col?normalizeVal(f.key,row[col]):'';});
@@ -2016,38 +2037,52 @@ function buildPreview(){
     if(!e.priority)e.priority='Moyenne';
     if(!e.type)e.type='Requête';
     if(!e.date)e.date=new Date().toISOString();
-    e._isDuplicate = existingTitles.has(e.titre.toLowerCase());
+    const {dupe, reason} = checkDupe(e, sets);
+    e._isDuplicate = dupe;
+    e._dupeReason  = reason;
     return e;
   }).filter(e=>e.titre);
   const dupeCount = importMapped.filter(e=>e._isDuplicate).length;
+  const newCount  = importMapped.length - dupeCount;
   document.getElementById('preview-count').textContent=importMapped.length;
+  document.getElementById('preview-new-count').textContent=newCount;
+  document.getElementById('preview-dupe-count').textContent=dupeCount;
   const tbody=document.getElementById('preview-rows');
   tbody.innerHTML=importMapped.slice(0,50).map(e=>`
     <tr style="${e._isDuplicate?'background:rgba(220,38,38,0.06);':''}">
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e._isDuplicate?'⚠ ':''}<span title="${e.titre}">${e.titre}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e._dupeReason||e.titre}">${e._isDuplicate?'⚠ ':''}<span>${e.titre}</span>${e._isDuplicate?`<span style="display:block;font-size:9px;color:var(--danger);margin-top:1px;">${e._dupeReason}</span>`:''}</td>
       <td>${typeBadge(e.type)}</td>
       <td>${statusBadge(e.status)}</td>
       <td style="font-size:11px;">${priorityHTML(e.priority)}</td>
       <td style="color:var(--muted);font-size:11px;">${e.author||'—'}</td>
     </tr>`).join('');
   if(importMapped.length>50){tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px;">… et ${importMapped.length-50} autres</td></tr>`;}
+  // Supprimer ancien avertissement s'il existe
+  const oldWarn = document.getElementById('dupe-warn-block');
+  if(oldWarn) oldWarn.remove();
   if(dupeCount>0){
     const warn=document.createElement('div');
-    warn.style.cssText='margin-top:8px;padding:8px 12px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:6px;font-size:11px;color:var(--danger);';
-    warn.innerHTML=`⚠ <strong>${dupeCount} doublon(s) détecté(s)</strong> — titres déjà présents dans la liste. Activez "Ignorer les doublons" ci-dessous pour les sauter.`;
-    tbody.parentElement.insertAdjacentElement('afterend', warn);
+    warn.id='dupe-warn-block';
+    warn.style.cssText='margin-top:8px;padding:10px 14px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:6px;font-size:11px;color:var(--danger);line-height:1.7;';
+    warn.innerHTML=`⚠ <strong>${dupeCount} doublon(s) détecté(s)</strong> sur ${importMapped.length} entrées.<br>
+      <span style="color:var(--muted);">La case "Ignorer les doublons" est cochée — ils seront automatiquement exclus de l'import.</span>`;
+    tbody.closest('.preview-scroll').insertAdjacentElement('afterend', warn);
   }
 }
 
 async function doImport() {
   const skipDupes=document.getElementById('skip-dupes').checked;
-  const existingTitles=new Set(entries.map(e=>e.titre.toLowerCase()));
+  const sets = buildDupeSets();
   let added=0,skipped=0;
   const toImport=[];
   importMapped.forEach(e=>{
-    if(skipDupes&&existingTitles.has(e.titre.toLowerCase())){skipped++;return;}
+    const {dupe} = checkDupe(e, sets);
+    if(skipDupes && dupe){skipped++;return;}
     toImport.push(e);
-    existingTitles.add(e.titre.toLowerCase());
+    // Enregistre dans les sets pour éviter les doublons entre lignes du même fichier
+    if((e.refModellium||'').trim()) sets.refs.add(e.refModellium.trim().toLowerCase());
+    sets.titDat.add(`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`);
+    sets.titres.add(e.titre.toLowerCase());
   });
   closeImportModal();
   if(spOnline&&toImport.length>0){
