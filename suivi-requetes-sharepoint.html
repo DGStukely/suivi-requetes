@@ -1994,7 +1994,11 @@ const PRIO_MAP={'haute':'Haute','high':'Haute','urgent':'Haute','urgente':'Haute
 function openImportModal(){importStep=1;importRows=[];importHeaders=[];importMapped=[];document.getElementById('import-file-input').value='';document.getElementById('import-btn-next').disabled=true;document.getElementById('import-btn-next').textContent='Continuer →';document.getElementById('import-btn-back').style.display='none';setImportStep(1);document.getElementById('import-overlay').classList.add('open');}
 function closeImportModal(){document.getElementById('import-overlay').classList.remove('open');}
 function setImportStep(n){importStep=n;[1,2,3].forEach(i=>{document.getElementById(`import-step-${i}`).classList.toggle('active',i===n);const dot=document.getElementById(`si-${i}`);dot.classList.toggle('active',i===n);dot.classList.toggle('done',i<n);});const labels=['1 — Chargement du fichier','2 — Correspondance des colonnes','3 — Aperçu & confirmation'];document.getElementById('step-label').textContent=labels[n-1];document.getElementById('import-btn-back').style.display=n>1?'':'none';document.getElementById('import-btn-next').textContent=n===3?'⬆ Importer':'Continuer →';}
-function importNext(){if(importStep===1){buildMappingUI();setImportStep(2);}else if(importStep===2){buildPreview();setImportStep(3);}else if(importStep===3){doImport();}}
+function importNext(){
+  if(importStep===1){buildMappingUI();setImportStep(2);}
+  else if(importStep===2){try{buildPreview();}catch(err){console.error('buildPreview error:',err);toast('Erreur lors de la préparation: '+err.message,'danger');}setImportStep(3);}
+  else if(importStep===3){doImport();}
+}
 function importPrev(){if(importStep>1)setImportStep(importStep-1);}
 function handleFileSelect(e){const file=e.target.files[0];if(!file)return;const ext=file.name.split('.').pop().toLowerCase();if(ext==='csv')readCSV(file);else readExcel(file);}
 function readCSV(file){const reader=new FileReader();reader.onload=ev=>{const text=ev.target.result;const lines=text.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2){toast('Fichier CSV vide ou invalide.','danger');return;}const sep=lines[0].includes(';')?';':',';importHeaders=parseCSVLine(lines[0],sep);importRows=lines.slice(1).map(l=>{const vals=parseCSVLine(l,sep);const obj={};importHeaders.forEach((h,i)=>obj[h]=vals[i]||'');return obj;}).filter(r=>Object.values(r).some(v=>v.trim()));onFileParsed(file.name);};reader.readAsText(file,'UTF-8');}
@@ -2085,6 +2089,10 @@ async function doImport() {
     sets.titDat.add(`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`);
     sets.titAut.add(`${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`);
   });
+  if(toImport.length===0){
+    toast(`Aucune entrée à importer — ${skipped} doublon(s) ignoré(s).`,'info');
+    return;
+  }
   closeImportModal();
   if(spOnline&&toImport.length>0){
     showLoading(`Import dans SharePoint… (0/${toImport.length})`);
