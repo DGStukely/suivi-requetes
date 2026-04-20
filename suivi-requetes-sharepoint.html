@@ -2010,8 +2010,8 @@ function normalizeVal(field,raw){if(!raw)return'';const v=raw.trim(),vl=v.toLowe
 function buildDupeSets() {
   const refs   = new Set(entries.map(e=>(e.refModellium||'').trim().toLowerCase()).filter(Boolean));
   const titDat = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`));
-  const titres = new Set(entries.map(e=>e.titre.toLowerCase()));
-  return { refs, titDat, titres };
+  const titAut = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`).filter(e=>e.includes('|')&&e.split('|')[1]));
+  return { refs, titDat, titAut };
 }
 
 function checkDupe(e, sets) {
@@ -2021,8 +2021,9 @@ function checkDupe(e, sets) {
   const titDatKey = `${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`;
   if (sets.titDat.has(titDatKey) && (e.saisieDate||'').slice(0,10))
     return { dupe: true, reason: 'Titre + date identiques' };
-  if (sets.titres.has(e.titre.toLowerCase()))
-    return { dupe: true, reason: 'Titre déjà présent' };
+  const titAutKey = `${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`;
+  if ((e.author||'').trim() && sets.titAut.has(titAutKey))
+    return { dupe: true, reason: 'Titre + auteur déjà présents' };
   return { dupe: false, reason: '' };
 }
 
