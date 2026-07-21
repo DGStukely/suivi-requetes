@@ -2013,7 +2013,7 @@ function getMapping(){const m={};document.querySelectorAll('.mapping-sel').forEa
 function normalizeVal(field,raw){if(!raw)return'';const v=raw.trim(),vl=v.toLowerCase();if(field==='type')return TYPE_MAP[vl]||'Requête';if(field==='status')return STATUS_MAP[vl]||'Ouvert';if(field==='priority')return PRIO_MAP[vl]||'Moyenne';if(field==='date'||field==='saisieDate'||field==='echeanceDate'||field==='fermetureDate'||field==='actionDate'){return toInputDate(v)||v;}return v;}
 function buildDupeSets() {
   const refs   = new Set(entries.map(e=>(e.refModellium||'').trim().toLowerCase()).filter(Boolean));
-  const titDat = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`));
+  const titDat = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}|${(e.author||'').trim().toLowerCase()}`));
   const titAut = new Set(entries.map(e=>`${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`).filter(e=>e.includes('|')&&e.split('|')[1]));
   return { refs, titDat, titAut };
 }
@@ -2022,9 +2022,9 @@ function checkDupe(e, sets) {
   const ref = (e.refModellium||'').trim().toLowerCase();
   if (ref && sets.refs.has(ref))
     return { dupe: true, reason: `Réf. ${e.refModellium} déjà présente` };
-  const titDatKey = `${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`;
+  const titDatKey = `${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}|${(e.author||'').trim().toLowerCase()}`;
   if (sets.titDat.has(titDatKey) && (e.saisieDate||'').slice(0,10))
-    return { dupe: true, reason: 'Titre + date identiques' };
+    return { dupe: true, reason: 'Titre + date + auteur identiques' };
   const titAutKey = `${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`;
   if ((e.author||'').trim() && sets.titAut.has(titAutKey))
     return { dupe: true, reason: 'Titre + auteur déjà présents' };
@@ -2086,7 +2086,7 @@ async function doImport() {
     toImport.push(e);
     // Enregistre dans les sets pour éviter les doublons entre lignes du même fichier
     if((e.refModellium||'').trim()) sets.refs.add(e.refModellium.trim().toLowerCase());
-    sets.titDat.add(`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}`);
+    sets.titDat.add(`${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}|${(e.author||'').trim().toLowerCase()}`);
     sets.titAut.add(`${e.titre.toLowerCase()}|${(e.author||'').trim().toLowerCase()}`);
   });
   if(toImport.length===0){
