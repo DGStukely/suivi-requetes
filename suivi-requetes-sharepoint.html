@@ -2020,8 +2020,13 @@ function buildDupeSets() {
 
 function checkDupe(e, sets) {
   const ref = (e.refModellium||'').trim().toLowerCase();
-  if (ref && sets.refs.has(ref))
-    return { dupe: true, reason: `Réf. ${e.refModellium} déjà présente` };
+  if (ref) {
+    // Le N° Modellium est la référence unique — il suffit seul
+    if (sets.refs.has(ref))
+      return { dupe: true, reason: `N° ${e.refModellium} déjà importé` };
+    return { dupe: false, reason: '' };
+  }
+  // Fallback sans N° : titre + date + auteur
   const titDatKey = `${e.titre.toLowerCase()}|${(e.saisieDate||'').slice(0,10)}|${(e.author||'').trim().toLowerCase()}`;
   if (sets.titDat.has(titDatKey) && (e.saisieDate||'').slice(0,10))
     return { dupe: true, reason: 'Titre + date + auteur identiques' };
