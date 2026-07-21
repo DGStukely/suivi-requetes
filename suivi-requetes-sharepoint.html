@@ -1985,11 +1985,11 @@ const AUTO_MAP={
   adresse:['adresse','address','adresse civique','adresse complète','rue'],
   sousCategorie:['sous-catégorie','sous catégorie','sous-categorie','subcategory','sub-category','sous categorie'],
   categorie:['catégorie','categorie','category','cat'],
-  refModellium:['no requête','no_requete','no demande','numéro de requête','référence','reference','identifiant','id demande','id requête','code requête','no dossier','dossier','number','ref','réf'],
+  refModellium:['no requête','no_requete','no demande','numéro de requête','référence','reference','identifiant','id demande','id requête','code requête','no dossier','dossier','number','ref','réf','n°','numéro','numero'],
 };
 const TYPE_MAP={'plainte':'Plainte','complaint':'Plainte','réclamation':'Plainte','reclamation':'Plainte','requête':'Requête','requete':'Requête','request':'Requête','demande':'Requête','information':'Information','info':'Information','renseignement':'Information','suggestion':'Suggestion','amélioration':'Suggestion','amelioration':'Suggestion'};
 const STATUS_MAP={'ouvert':'Ouvert','open':'Ouvert','nouveau':'Ouvert','new':'Ouvert','soumis':'Ouvert','en cours':'En cours','in progress':'En cours','traitement':'En cours','en traitement':'En cours','résolu':'Résolu','resolu':'Résolu','resolved':'Résolu','fermé':'Fermé','ferme':'Fermé','closed':'Fermé','terminé':'Fermé','réouvert':'Ouvert','reouvert':'Ouvert','reopened':'Ouvert'};
-const PRIO_MAP={'haute':'Haute','high':'Haute','urgent':'Haute','urgente':'Haute','élevée':'Haute','elevee':'Haute','moyenne':'Moyenne','medium':'Moyenne','normale':'Moyenne','normal':'Moyenne','modérée':'Moyenne','basse':'Basse','low':'Basse','faible':'Basse'};
+const PRIO_MAP={'haute':'Haute','high':'Haute','urgent':'Haute','urgente':'Haute','élevée':'Haute','elevee':'Haute','1 - haute':'Haute','1-haute':'Haute','moyenne':'Moyenne','medium':'Moyenne','normale':'Moyenne','normal':'Moyenne','modérée':'Moyenne','2 - normale':'Moyenne','2-normale':'Moyenne','basse':'Basse','low':'Basse','faible':'Basse','3 - basse':'Basse','3-basse':'Basse'};
 
 function openImportModal(){importStep=1;importRows=[];importHeaders=[];importMapped=[];document.getElementById('import-file-input').value='';document.getElementById('import-btn-next').disabled=true;document.getElementById('import-btn-next').textContent='Continuer →';document.getElementById('import-btn-back').style.display='none';setImportStep(1);document.getElementById('import-overlay').classList.add('open');}
 function closeImportModal(){document.getElementById('import-overlay').classList.remove('open');}
